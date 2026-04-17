@@ -17,6 +17,28 @@ body{font-family:'Figtree',system-ui,sans-serif;background:#f6f7fb;color:#323338
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @keyframes dotPulse{0%,100%{opacity:.3}50%{opacity:1}}
+.gw-row{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px 90px}
+.gw-colhead{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px 90px}
+.gw-summary{display:grid;grid-template-columns:minmax(0,1fr) 120px 120px 90px}
+@media(max-width:768px){
+  .gw-row{grid-template-columns:1fr !important}
+  .gw-row>div:nth-child(1){order:1}
+  .gw-row>div:nth-child(2){order:2;display:inline-block}
+  .gw-row>div:nth-child(3){order:3;display:inline-block}
+  .gw-row>div:nth-child(4){order:4;display:none}
+  .gw-colhead{display:none !important}
+  .gw-row{gap:6px;padding:10px 12px 10px 14px !important}
+  .gw-row>div:nth-child(2),.gw-row>div:nth-child(3){display:inline-flex !important}
+  .gw-row>div:nth-child(4){display:none !important}
+  .gw-summary{grid-template-columns:1fr !important}
+  .gw-summary>span:nth-child(2),.gw-summary>span:nth-child(3),.gw-summary>div:last-child{display:none !important}
+  .gw-impact{font-size:11px !important;flex-direction:column !important}
+  .gw-impact span{margin-left:0 !important;margin-top:2px !important}
+
+  header{padding:10px 12px !important}
+  header h1{font-size:16px !important}
+  main{padding:10px 8px 40px !important}
+}
 </style>
 </head>
 <body>
@@ -394,22 +416,22 @@ function Board({isAdmin}){
               </div>
               {isOpen&&(
                 <div style={{border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 8px 8px",background:C.white}}>
-                  <div style={{padding:"8px 14px 8px 19px",background:gc+"06",borderBottom:`1px solid ${C.border}`}}>
+                  <div className="gw-impact" style={{padding:"8px 14px 8px 19px",background:gc+"06",borderBottom:`1px solid ${C.border}`}}>
                     <span style={{fontSize:12,color:C.dark,lineHeight:1.5}}><b style={{color:gc}}>Impact:</b> {prod.value}</span>
                     {prod.who&&<span style={{fontSize:10,color:"#aaa",fontFamily:fm,marginLeft:10}}>{prod.who}</span>}
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"6px 14px 6px 19px",borderBottom:`1px solid ${C.border}`,background:"#fafbfc"}}>
+                  <div className="gw-colhead" style={{padding:"6px 14px 6px 19px",borderBottom:`1px solid ${C.border}`,background:"#fafbfc"}}>
                     <span style={colH}>Feature</span><span style={colH}>Status</span><span style={colH}>Target</span><span style={{...colH,textAlign:"right"}}>Progress</span>
                   </div>
                   {rows.map(({f,i:ri},rowIdx)=>{const st2=STATUS[f.s];const isDone=f.s==="complete";return(
-                    <div key={ri} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"8px 14px 8px 19px",alignItems:"center",borderBottom:rowIdx<rows.length-1?"1px solid #f2f3f6":"none",background:isDone?"#fbfefc":C.white,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=isDone?"#fbfefc":C.white;}}>
+                    <div key={ri} className="gw-row" style={{padding:"8px 14px 8px 19px",alignItems:"center",borderBottom:rowIdx<rows.length-1?"1px solid #f2f3f6":"none",background:isDone?"#fbfefc":C.white,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=isDone?"#fbfefc":C.white;}}>
                       <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.d}</div></div>
                       <div>{isAdmin?<button onClick={e=>openDrop(e,prod.id,ri)} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,fontFamily:ff,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,border:"none",cursor:"pointer",minWidth:86,boxShadow:f.s==="blocked"?`0 0 0 2px ${C.red}25`:"none",whiteSpace:"nowrap"}} onMouseEnter={e=>{e.currentTarget.style.filter="brightness(1.1)";}} onMouseLeave={e=>{e.currentTarget.style.filter="none";}}>{st2.label} <span style={{marginLeft:4,fontSize:8,opacity:0.6}}>▾</span></button>:<span style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,minWidth:86,textAlign:"center"}}>{st2.label}</span>}</div>
                       <div>{isAdmin?<button onClick={e=>openCal(e,prod.id,ri)} style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,background:"transparent",border:"1px solid transparent",borderRadius:5,padding:"4px 8px",cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.background="#f6f7fa";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="transparent";e.currentTarget.style.background="transparent";}}>📅 {f.t}</button>:<span style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,padding:"4px 8px"}}>{f.t}</span>}</div>
                       <div style={{display:"flex",justifyContent:"flex-end"}}><MiniBar phase={f.s}/></div>
                     </div>
                   );})}
-                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"8px 14px 8px 19px",background:"#fafbfc",borderTop:`1px solid ${C.border}`}}>
+                  <div className="gw-summary" style={{padding:"8px 14px 8px 19px",background:"#fafbfc",borderTop:`1px solid ${C.border}`}}>
                     <span style={{fontSize:10,fontWeight:700,color:C.sub}}>{total} features · {done} complete · {total-done} in progress</span><span/><span/>
                     <div style={{display:"flex",justifyContent:"flex-end"}}><Bat pct={pct} color={gc} wide/></div>
                   </div>
