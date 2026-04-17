@@ -66,12 +66,12 @@ async function fetchBoard() {
     const features = await fRes.json();
     return products.map(p => ({
       id: p.id,
-      nm: p.name,
+      name: p.name,
       st: p.status,
       since: p.since || null,
-      val: p.impact || "",
+      value: p.impact || "",
       who: p.users || "",
-      ft: features.filter(f => f.product_id === p.id).map(f => ({
+      features: features.filter(f => f.product_id === p.id).map(f => ({
         n: f.name,
         s: f.status,
         t: f.target_date || "TBD",
