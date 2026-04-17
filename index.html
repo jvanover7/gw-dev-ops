@@ -49,6 +49,54 @@ const ff="'Figtree',system-ui,sans-serif";const fm="'IBM Plex Mono',monospace";
 function parseDate(s){if(!s||s==="TBD")return null;const d=new Date(s);return isNaN(d)?null:d;}
 function fmtDate(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
 
+
+/* === SHARE MODAL === */
+function ShareModal({onClose}) {
+  const [cp, setCp] = useState(null);
+  const vLink = "https://gw-dev-ops.vercel.app?key=greenworks2026";
+  const aLink = "https://gw-dev-ops.vercel.app?key=gwadmin2026x";
+  const copy = (l,k) => { try{navigator.clipboard.writeText(l);}catch(e){} setCp(k); setTimeout(()=>setCp(null),2000); };
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,width:480,maxWidth:"92vw",boxShadow:"0 16px 60px rgba(0,0,0,0.2)"}}>
+        <div style={{padding:"20px 24px",borderBottom:`1px solid ${C.border}`}}>
+          <h3 style={{fontSize:17,fontWeight:800,color:C.dark,margin:0}}>Share Access</h3>
+          <p style={{fontSize:12,color:C.sub,marginTop:4}}>Send links to give others access to this board</p>
+        </div>
+        <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:20}}>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:C.green}}/>
+              <span style={{fontSize:12,fontWeight:700,color:C.green,textTransform:"uppercase"}}>Viewer Link</span>
+              <span style={{fontSize:11,color:"#aaa"}}>&mdash; read only</span>
+            </div>
+            <p style={{fontSize:12,color:C.sub,marginBottom:8}}>Send to Jessica or anyone who needs to see status. They can't make changes.</p>
+            <div style={{display:"flex",gap:8}}>
+              <input readOnly value={vLink} onFocus={e=>e.target.select()} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:11,fontFamily:fm,color:C.dark,background:"#f8f9fb",outline:"none"}}/>
+              <button onClick={()=>copy(vLink,"v")} style={{padding:"10px 18px",borderRadius:8,border:"none",background:cp==="v"?C.green:C.navy,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",minWidth:90,transition:"background 0.2s"}}>{cp==="v"?"Copied!":"Copy Link"}</button>
+            </div>
+          </div>
+          <div style={{borderTop:`1px solid ${C.border}`,paddingTop:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <div style={{width:8,height:8,borderRadius:"50%",background:C.navy}}/>
+              <span style={{fontSize:12,fontWeight:700,color:C.navy,textTransform:"uppercase"}}>Admin Link</span>
+              <span style={{fontSize:11,color:"#aaa"}}>&mdash; full control</span>
+            </div>
+            <p style={{fontSize:12,color:C.sub,marginBottom:8}}>YOUR link with full editing. Only share with trusted admins.</p>
+            <div style={{display:"flex",gap:8}}>
+              <input readOnly value={aLink} type="password" onFocus={e=>{e.target.type="text";e.target.select();}} onBlur={e=>{e.target.type="password";}} style={{flex:1,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:11,fontFamily:fm,color:C.dark,background:"#f8f9fb",outline:"none"}}/>
+              <button onClick={()=>copy(aLink,"a")} style={{padding:"10px 18px",borderRadius:8,border:"none",background:cp==="a"?C.green:C.navy,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",minWidth:90,transition:"background 0.2s"}}>{cp==="a"?"Copied!":"Copy Link"}</button>
+            </div>
+          </div>
+        </div>
+        <div style={{padding:"16px 24px",borderTop:`1px solid ${C.border}`,textAlign:"right"}}>
+          <button onClick={onClose} style={{padding:"9px 22px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",fontSize:13,fontWeight:600,cursor:"pointer",color:C.sub}}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const INIT=[
   {id:"dash",name:"Executive Dashboard",st:"deployed",since:"Nov 2025",value:"Operational nerve center — real-time visibility into 100K+ orders, team performance, pipeline, and revenue across 4 verticals.",who:"Management · Growth · Commercial · Engineering",features:[
     {n:"Team Member Logins",s:"planning",t:"TBD",d:"Limited-access role — own stats/tasks only"},
@@ -152,11 +200,11 @@ function AccessGate() {
       <div style={{background:"#fff",borderRadius:16,padding:"40px 36px",width:360,maxWidth:"90vw",boxShadow:"0 8px 30px rgba(0,0,0,0.08)",textAlign:"center"}}>
         <div style={{fontSize:32,marginBottom:8}}>🔒</div>
         <h2 style={{fontSize:18,fontWeight:800,color:C.dark,marginBottom:4}}>GreenWorks Dev Ops</h2>
-        <p style={{fontSize:12,color:C.sub,marginBottom:24}}>Enter your access code to continue</p>
+        <p style={{fontSize:12,color:C.sub,marginBottom:24}}>This board is invite-only. Enter your access code or ask your admin for a link.</p>
         <input value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")tryAccess();}} placeholder="Access code" type="password"
           style={{width:"100%",padding:"12px 16px",borderRadius:10,border:`2px solid ${err?C.red:C.border}`,fontSize:14,fontFamily:ff,outline:"none",textAlign:"center",marginBottom:12,transition:"border 0.2s"}} autoFocus />
         <button onClick={tryAccess} style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:C.navy,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:ff}}>Enter</button>
-        {err && <p style={{fontSize:12,color:C.red,marginTop:12,fontWeight:600}}>Invalid access code</p>}
+        {err && <p style={{fontSize:12,color:C.red,marginTop:12,fontWeight:600}}>Invalid code — ask your admin for the correct link</p>}
       </div>
     </div>
   );
@@ -237,6 +285,7 @@ function Board({isAdmin}){
   const chatEnd=useRef(null);
   const[toast,setToast]=useState(null);
   const[addForm,setAddForm]=useState(null);
+  const[showShare,setShowShare]=useState(false);
 
   useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
   const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
@@ -283,7 +332,7 @@ function Board({isAdmin}){
           <FPill label="Deployed" count={deployedP} active={filter==="deployed"} onClick={()=>setFilter("deployed")} color={C.green}/>
           <FPill label="Active" count={totalF-doneF} active={filter==="active"} onClick={()=>setFilter("active")} color={C.yellow}/>
           {blockedF>0&&<FPill label="Blocked" count={blockedF} active={filter==="blocked"} onClick={()=>setFilter("blocked")} color={C.red}/>}
-          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
+          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
       </header>
 
@@ -344,6 +393,7 @@ function Board({isAdmin}){
 
       {isAdmin&&calendar&&(()=>{const p=products.find(x=>x.id===calendar.pid);return<CalPicker anchor={calendar.rect} val={p?.features[calendar.fi]?.t} onPick={v=>setDt(calendar.pid,calendar.fi,v)} onClear={()=>setDt(calendar.pid,calendar.fi,"TBD")} onClose={()=>setCalendar(null)}/>;})()}
 
+      {isAdmin&&showShare&&<ShareModal onClose={()=>setShowShare(false)}/>}
       {isAdmin&&addForm&&<AddForm type={addForm} products={products} onSubmit={addForm==="product"?addProduct:addFeature} onCancel={()=>setAddForm(null)}/>}
 
       {toast&&<div style={{position:"fixed",bottom:chatOpen?340:70,left:"50%",transform:"translateX(-50%)",zIndex:9998,background:C.dark,color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 6px 20px rgba(0,0,0,0.2)",animation:"toastIn 0.2s ease"}}>✓ {toast}</div>}
