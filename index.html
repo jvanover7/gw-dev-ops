@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GreenWorks Dev Ops</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2300c875'/></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Figtree',system-ui,sans-serif;background:#f6f7fb;color:#323338}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:#d0d4db;border-radius:3px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes dotPulse{0%,100%{opacity:.3}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback} = React;
+
+/* ─── ACCESS CONTROL ─── */
+const VIEWER_KEY = "greenworks2026";
+const ADMIN_KEY = "gwadmin2026x";
+
+function getAccessLevel() {
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get("key");
+  if (key === ADMIN_KEY) return "admin";
+  if (key === VIEWER_KEY) return "viewer";
+  return null;
+}
+
+/* ─── PALETTE ─── */
+const C={green:"#00c875",yellow:"#fdab3d",blue:"#0086c0",red:"#e2445c",purple:"#a25ddc",cyan:"#00c2e0",navy:"#0073ea",dark:"#323338",sub:"#676879",light:"#f6f7fb",border:"#e0e3e9",white:"#ffffff",hover:"#f5f6f8"};
+const STATUS={complete:{label:"Complete",bg:C.green,text:"#fff"},rollout:{label:"Rolling Out",bg:C.cyan,text:"#fff"},testing:{label:"Testing",bg:C.blue,text:"#fff"},"in-dev":{label:"In Dev",bg:C.yellow,text:"#333"},planning:{label:"Planning",bg:C.purple,text:"#fff"},blocked:{label:"Blocked",bg:C.red,text:"#fff"}};
+const S_ORDER=["planning","in-dev","testing","rollout","complete","blocked"];
+const GC=[C.green,C.blue,C.purple,C.yellow,C.cyan,C.red,C.navy];
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAYS_H=["Su","Mo","Tu","We","Th","Fr","Sa"];
+const PS={deployed:{label:"Deployed",bg:C.green},building:{label:"Building",bg:C.yellow},roadmap:{label:"Roadmap",bg:C.purple}};
+const ff="'Figtree',system-ui,sans-serif";const fm="'IBM Plex Mono',monospace";
+
+function parseDate(s){if(!s||s==="TBD")return null;const d=new Date(s);return isNaN(d)?null:d;}
+function fmtDate(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+
+const INIT=[
+  {id:"dash",name:"Executive Dashboard",st:"deployed",since:"Nov 2025",value:"Operational nerve center — real-time visibility into 100K+ orders, team performance, pipeline, and revenue across 4 verticals.",who:"Management · Growth · Commercial · Engineering",features:[
+    {n:"Team Member Logins",s:"planning",t:"TBD",d:"Limited-access role — own stats/tasks only"},
+    {n:"Revenue Tooltips",s:"in-dev",t:"May 1, 2026",d:"Hover breakdowns on KPI cards"},
+    {n:"LOST Dual Attribution",s:"in-dev",t:"May 8, 2026",d:"Canceled order dual attribution"},
+    {n:"Active Card Click Handler",s:"in-dev",t:"May 1, 2026",d:"Click-through to pipeline orders"},
+    {n:"Dev/Prod DB Isolation",s:"planning",t:"TBD",d:"Neon branching for environments"},
+    {n:"Lost Orders Detection",s:"planning",t:"TBD",d:"Flag inbound calls with no ISN order"},
+    {n:"Fast Sync Active Tasks",s:"complete",t:"Apr 7, 2026",d:"60-second ISN notes sync"},
+    {n:"Aircall Transfer Attribution",s:"complete",t:"Apr 6, 2026",d:"Transfers credited to sender and receiver"},
+    {n:"Missed Call Attribution",s:"complete",t:"Mar 18, 2026",d:"841 agent mappings · 2,516 calls"},
+    {n:"Follow-Up Task System",s:"complete",t:"Mar 18, 2026",d:"AI-analyzed notes · overdue/missed badges"},
+    {n:"Vertical Classification",s:"complete",t:"Mar 10, 2026",d:"82 types · 4 verticals · 7 dual-attributed"},
+    {n:"Overview + CST Alignment",s:"complete",t:"Mar 18, 2026",d:"Timezone-correct daily KPIs"},
+    {n:"Comparison Charts",s:"complete",t:"Mar 24, 2026",d:"Year/Month/Week with pill-tab switcher"},
+    {n:"Search OID + AI Analysis",s:"complete",t:"Feb 9, 2026",d:"AI categorizes notes as objection/timing/follow-up"},
+    {n:"Buyer Agent Notes & Stats",s:"complete",t:"Feb 9, 2026",d:"Agent notes + order count in search results"},
+    {n:"Pipeline Snapshots",s:"complete",t:"Feb 15, 2026",d:"50 locked rows monthly"},
+    {n:"Upgrade Trackers",s:"complete",t:"Mar 12, 2026",d:"SLS · ESFR · AQR · Blue Tape"},
+    {n:"Sales Pipeline Attribution",s:"complete",t:"Feb 2026",d:"WON/LOST/PIPELINE attribution rules"},
+    {n:"Online Order Detection",s:"complete",t:"Mar 24, 2026",d:"NULL scheduled+created = online"},
+    {n:"AI Chat Assistant",s:"complete",t:"Jan 2026",d:"Natural language dashboard queries"},
+    {n:"Competitor Intelligence",s:"complete",t:"Jan 2026",d:"Strategic competitor analysis"},
+    {n:"Aircall Analytics",s:"complete",t:"Dec 2025",d:"Call tracking · agent performance"},
+    {n:"WhatConverts Integration",s:"complete",t:"Dec 2025",d:"Lead tracking and attribution"},
+    {n:"ISN Analytics",s:"complete",t:"Nov 2025",d:"Orders · revenue · fees · inspectors"},
+    {n:"23+ Sync Workers",s:"complete",t:"Dec 2025",d:"ISN · Aircall · WhatConverts continuous sync"},
+  ]},
+  {id:"tiff",name:"Tiffany — AI Voice Agent",st:"deployed",since:"Feb 2026",value:"24/7 AI inbound booking. 62.5% close rate · $733 avg ticket · $99/mo — replaces dedicated phone AE.",who:"Inbound Callers → Management",features:[
+    {n:"ISN Agent Push Fix",s:"blocked",t:"TBD",d:"500 error — logging deployed"},
+    {n:"ISN Fees Fix ($0)",s:"blocked",t:"TBD",d:"Fees posting $0 after push"},
+    {n:"Transcripts on Dashboard",s:"in-dev",t:"May 15, 2026",d:"Conversation ID linking for playback"},
+    {n:"Calendar Availability",s:"planning",t:"TBD",d:"ISN calendar slots for real-time booking"},
+    {n:"System Prompt v5",s:"complete",t:"Mar 5, 2026",d:"6 critical behavioral rules"},
+    {n:"ATTOM Property Lookup",s:"complete",t:"Mar 8, 2026",d:"Foundation · stories · roof"},
+    {n:"RAG Knowledge Base",s:"complete",t:"Mar 10, 2026",d:"Simplified 24 → 6 docs"},
+    {n:"AI Scheduler Page",s:"complete",t:"Mar 14, 2026",d:"Pending queue · ISN preview · dupe detection"},
+    {n:"4 Server Tools",s:"complete",t:"Feb 2026",d:"Service area · property · pricing · submit"},
+    {n:"10 Agent Versions",s:"complete",t:"Mar 2026",d:"GPT-5.1 selected for quality"},
+  ]},
+  {id:"coach",name:"AI Sales Coach",st:"deployed",since:"Feb 2026",value:"Structured sales training — 3 paths × 5 levels with AI practice scenarios. Replaces ad-hoc coaching.",who:"Clayton · Gaby · Hannah · Jake · Kelsi",features:[
+    {n:"Agent Access Fix",s:"in-dev",t:"Apr 21, 2026",d:"Blocking team usage"},
+    {n:"15-Level Content Replace",s:"planning",t:"TBD",d:"Real GreenWorks scenarios"},
+    {n:"Quick Practice Fixes",s:"planning",t:"TBD",d:"Selector + response logic"},
+    {n:"Course Practice Fixes",s:"planning",t:"TBD",d:"Lesson flow issues"},
+    {n:"Audio Playback",s:"planning",t:"TBD",d:"Record and replay sessions"},
+    {n:"3 Core Training Paths",s:"complete",t:"Feb 2026",d:"Discovery · Solution · Close & Objections"},
+    {n:"15-Level Progression",s:"complete",t:"Feb 2026",d:"Structured advancement system"},
+    {n:"6-Selector Quick Practice",s:"complete",t:"Feb 2026",d:"Dynamic scenario configuration"},
+    {n:"Commercial Scenarios",s:"complete",t:"Mar 15, 2026",d:"ESAs · PCAs · due diligence"},
+    {n:"Conversation Grading",s:"complete",t:"Mar 20, 2026",d:"Quality-gated close progression"},
+  ]},
+  {id:"live",name:"GreenWorks Live",st:"deployed",since:"Jan 2026",value:"Real-time call scoring and coaching. AI grades Aircall transcripts on discovery, solution, and close skills.",who:"Sales Managers · Floor Walk Coaching",features:[
+    {n:"AI Call Grading Rubrics",s:"complete",t:"Jan 2026",d:"New Sales · Nurture · Service · Upgrade"},
+    {n:"4-Hour Scoring Sweeps",s:"complete",t:"Jan 2026",d:"Batch scoring on schedule"},
+    {n:"Agent Performance Stats",s:"complete",t:"Jan 2026",d:"Per-agent scoring trends"},
+    {n:"AI Cost Monitor",s:"complete",t:"Jan 2026",d:"Track API costs per call"},
+  ]},
+  {id:"diamond",name:"Diamond Management",st:"deployed",since:"Dec 2025",value:"Structured team assessment using Diamond methodology. Replaces ad-hoc reviews.",who:"Management Team",features:[
+    {n:"Workflow Automation",s:"planning",t:"TBD",d:"Automated assessment reminders"},
+    {n:"Team Profiles & Scoring",s:"complete",t:"Jan 2026",d:"Individual framework assessments"},
+    {n:"Core Framework",s:"complete",t:"Dec 2025",d:"Diamond methodology deployed"},
+  ]},
+  {id:"sched",name:"Online Scheduler",st:"deployed",since:"Apr 2026",value:"Customer self-service 24/7 booking. Reduces call volume, captures after-hours demand.",who:"Customers (external)",features:[
+    {n:"Internal Testing",s:"testing",t:"Apr 21, 2026",d:"Team validation before launch"},
+    {n:"Company-Wide Rollout",s:"planning",t:"May 5, 2026",d:"Deploy to marketing channels"},
+    {n:"Complete Build",s:"complete",t:"Apr 2026",d:"Fully built by Schaffin"},
+  ]},
+  {id:"outbound",name:"Outbound Sales Dashboard",st:"building",since:null,value:"Outbound workspace — CRM, AI transcripts, tasks, calendar, deals. Pilot: Jon Stewart.",who:"Jon Stewart (pilot) · Future AEs",features:[
+    {n:"Requirements & Architecture",s:"in-dev",t:"Apr 25, 2026",d:"Scoped from Jon Stewart"},
+    {n:"Contact CRM Module",s:"planning",t:"TBD",d:"Company · role · history"},
+    {n:"AI Transcript Analysis",s:"planning",t:"TBD",d:"Auto-analyze recordings"},
+    {n:"Calendar Integration",s:"planning",t:"TBD",d:"Composio Calendar sync"},
+    {n:"Deal Tracking",s:"planning",t:"TBD",d:"Pipeline · probability · close"},
+    {n:"Sponsorship Tracking",s:"planning",t:"TBD",d:"Commercial deal payments"},
+    {n:"Loop-In Automation",s:"planning",t:"TBD",d:"Auto-notify on progression"},
+  ]},
+  {id:"devops",name:"Dev Operations Tracker",st:"building",since:null,value:"Live project transparency for leadership. All products, features, timelines, and business impact.",who:"Leadership · Jordan",features:[
+    {n:"Supabase Backend",s:"planning",t:"Apr 2026",d:"Persistent shared data"},
+    {n:"Vercel Deployment",s:"complete",t:"Apr 14, 2026",d:"Live shareable URL"},
+    {n:"Interactive Board UI",s:"complete",t:"Apr 14, 2026",d:"Monday-style with editing + AI chat"},
+  ]},
+  {id:"saas",name:"SaaS Platform Extraction",st:"roadmap",since:null,value:"Multi-tenant inspection CRM SaaS. TAM: 2,000+ ISN companies. $99–$2,500+/mo.",who:"Future external customers",features:[
+    {n:"Market Validation",s:"complete",t:"Mar 2026",d:"TAM + pricing confirmed"},
+    {n:"Multi-Tenant Architecture",s:"planning",t:"TBD",d:"Isolation · data model"},
+    {n:"MVP Build",s:"planning",t:"TBD",d:"Core feature set"},
+  ]},
+];
+
+/* ════ ACCESS GATE ════ */
+function AccessGate() {
+  const [pin, setPin] = useState("");
+  const [err, setErr] = useState(false);
+  const tryAccess = () => {
+    if (pin === VIEWER_KEY || pin === ADMIN_KEY) {
+      window.location.search = "?key=" + pin;
+    } else { setErr(true); setTimeout(() => setErr(false), 2000); }
+  };
+  return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f6f7fb",fontFamily:ff}}>
+      <div style={{background:"#fff",borderRadius:16,padding:"40px 36px",width:360,maxWidth:"90vw",boxShadow:"0 8px 30px rgba(0,0,0,0.08)",textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:8}}>🔒</div>
+        <h2 style={{fontSize:18,fontWeight:800,color:C.dark,marginBottom:4}}>GreenWorks Dev Ops</h2>
+        <p style={{fontSize:12,color:C.sub,marginBottom:24}}>Enter your access code to continue</p>
+        <input value={pin} onChange={e=>setPin(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")tryAccess();}} placeholder="Access code" type="password"
+          style={{width:"100%",padding:"12px 16px",borderRadius:10,border:`2px solid ${err?C.red:C.border}`,fontSize:14,fontFamily:ff,outline:"none",textAlign:"center",marginBottom:12,transition:"border 0.2s"}} autoFocus />
+        <button onClick={tryAccess} style={{width:"100%",padding:"12px",borderRadius:10,border:"none",background:C.navy,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:ff}}>Enter</button>
+        {err && <p style={{fontSize:12,color:C.red,marginTop:12,fontWeight:600}}>Invalid access code</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ════ CALENDAR ════ */
+function CalPicker({anchor,val,onPick,onClear,onClose}){
+  const p=parseDate(val);const today=new Date();
+  const[mo,setMo]=useState(p?p.getMonth():today.getMonth());
+  const[yr,setYr]=useState(p?p.getFullYear():today.getFullYear());
+  const ref=useRef(null);
+  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};const t=setTimeout(()=>document.addEventListener("mousedown",h),20);return()=>{clearTimeout(t);document.removeEventListener("mousedown",h);};},[onClose]);
+  const prev=()=>{if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1);};
+  const next=()=>{if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1);};
+  const fd=new Date(yr,mo,1).getDay();const dim=new Date(yr,mo+1,0).getDate();
+  const cells=[];for(let i=0;i<fd;i++)cells.push(null);for(let d=1;d<=dim;d++)cells.push(d);
+  const isSel=d=>p&&p.getDate()===d&&p.getMonth()===mo&&p.getFullYear()===yr;
+  const isToday=d=>d&&today.getDate()===d&&today.getMonth()===mo&&today.getFullYear()===yr;
+  const st={position:"fixed",zIndex:9999};
+  if(anchor){const sb=window.innerHeight-anchor.bottom;if(sb<340)st.bottom=window.innerHeight-anchor.top+4;else st.top=anchor.bottom+4;st.left=Math.min(anchor.left,window.innerWidth-280);}
+  return(
+    <div ref={ref} style={{...st,background:C.white,borderRadius:12,border:`1px solid ${C.border}`,boxShadow:"0 12px 48px rgba(0,0,0,0.16)",width:264,fontFamily:ff,animation:"fadeUp 0.15s ease"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px 8px"}}>
+        <button onClick={prev} style={{background:"none",border:"none",fontSize:18,color:C.sub,cursor:"pointer",width:28,height:28,borderRadius:6}}>‹</button>
+        <span style={{fontSize:13,fontWeight:700,color:C.dark}}>{MONTHS[mo]} {yr}</span>
+        <button onClick={next} style={{background:"none",border:"none",fontSize:18,color:C.sub,cursor:"pointer",width:28,height:28,borderRadius:6}}>›</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",padding:"0 10px"}}>{DAYS_H.map(d=><div key={d} style={{textAlign:"center",fontSize:10,fontWeight:700,color:"#bbb",padding:"4px 0"}}>{d}</div>)}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",padding:"2px 10px 8px",gap:2}}>
+        {cells.map((d,i)=><div key={i} onClick={()=>{if(d)onPick(fmtDate(new Date(yr,mo,d)));}} style={{textAlign:"center",fontSize:12,fontWeight:isSel(d)?700:isToday(d)?600:400,padding:"7px 0",borderRadius:8,cursor:d?"pointer":"default",background:isSel(d)?C.navy:"transparent",color:isSel(d)?"#fff":isToday(d)?C.navy:d?C.dark:"transparent",border:isToday(d)&&!isSel(d)?`1.5px solid ${C.navy}30`:"1.5px solid transparent"}} onMouseEnter={e=>{if(d&&!isSel(d))e.currentTarget.style.background="#f0f1f5";}} onMouseLeave={e=>{if(d&&!isSel(d))e.currentTarget.style.background="transparent";}}>{d||""}</div>)}
+      </div>
+      <div style={{borderTop:`1px solid ${C.border}`,padding:"8px 12px",display:"flex",justifyContent:"space-between"}}>
+        <button onClick={()=>onPick(fmtDate(today))} style={{background:"none",border:"none",fontSize:11,fontWeight:600,cursor:"pointer",padding:"4px 8px",color:C.navy,fontFamily:"inherit"}}>Today</button>
+        <button onClick={onClear} style={{background:"none",border:"none",fontSize:11,fontWeight:600,cursor:"pointer",padding:"4px 8px",color:C.red,fontFamily:"inherit"}}>Set TBD</button>
+      </div>
+    </div>
+  );
+}
+
+/* ════ ADD FORM ════ */
+function AddForm({type,onSubmit,onCancel,products}){
+  const[name,setName]=useState("");const[desc,setDesc]=useState("");const[status,setStatus]=useState(type==="product"?"building":"planning");const[target,setTarget]=useState("TBD");const[prodId,setProdId]=useState(products?.[0]?.id||"");
+  const submit=()=>{if(!name.trim())return;if(type==="product")onSubmit({id:name.toLowerCase().replace(/\s+/g,"-").slice(0,20)+"-"+Date.now(),name:name.trim(),st:status,since:null,value:desc.trim()||"New project",who:"",features:[]});else onSubmit(prodId,{n:name.trim(),s:status,t:target,d:desc.trim()});};
+  const inputStyle={width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:ff,outline:"none",boxSizing:"border-box"};
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:ff}} onClick={onCancel}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,width:420,maxWidth:"90vw",boxShadow:"0 16px 60px rgba(0,0,0,0.2)",animation:"fadeUp 0.2s ease"}}>
+        <div style={{padding:"18px 22px",borderBottom:`1px solid ${C.border}`}}><h3 style={{fontSize:16,fontWeight:800,color:C.dark,margin:0}}>Add New {type==="product"?"Product":"Feature"}</h3></div>
+        <div style={{padding:"18px 22px",display:"flex",flexDirection:"column",gap:12}}>
+          {type==="feature"&&<div><label style={{display:"block",fontSize:11,fontWeight:600,color:C.sub,marginBottom:4,textTransform:"uppercase"}}>Product</label><select value={prodId} onChange={e=>setProdId(e.target.value)} style={inputStyle}>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>}
+          <div><label style={{display:"block",fontSize:11,fontWeight:600,color:C.sub,marginBottom:4,textTransform:"uppercase"}}>Name</label><input value={name} onChange={e=>setName(e.target.value)} placeholder={type==="product"?"e.g. Client Portal":"e.g. Dark Mode"} style={inputStyle} autoFocus/></div>
+          <div><label style={{display:"block",fontSize:11,fontWeight:600,color:C.sub,marginBottom:4,textTransform:"uppercase"}}>Description</label><input value={desc} onChange={e=>setDesc(e.target.value)} placeholder="Brief description..." style={inputStyle}/></div>
+          <div style={{display:"flex",gap:10}}>
+            <div style={{flex:1}}><label style={{display:"block",fontSize:11,fontWeight:600,color:C.sub,marginBottom:4,textTransform:"uppercase"}}>Status</label><select value={status} onChange={e=>setStatus(e.target.value)} style={inputStyle}>{type==="product"?Object.entries(PS).map(([k,v])=><option key={k} value={k}>{v.label}</option>):S_ORDER.map(k=><option key={k} value={k}>{STATUS[k].label}</option>)}</select></div>
+            {type==="feature"&&<div style={{flex:1}}><label style={{display:"block",fontSize:11,fontWeight:600,color:C.sub,marginBottom:4,textTransform:"uppercase"}}>Target</label><input value={target} onChange={e=>setTarget(e.target.value)} placeholder="TBD" style={inputStyle}/></div>}
+          </div>
+        </div>
+        <div style={{padding:"14px 22px",borderTop:`1px solid ${C.border}`,display:"flex",justifyContent:"flex-end",gap:8}}>
+          <button onClick={onCancel} style={{padding:"8px 16px",borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",fontSize:13,fontWeight:600,cursor:"pointer",color:C.sub,fontFamily:ff}}>Cancel</button>
+          <button onClick={submit} disabled={!name.trim()} style={{padding:"8px 20px",borderRadius:8,border:"none",background:name.trim()?C.navy:"#ddd",color:"#fff",fontSize:13,fontWeight:700,cursor:name.trim()?"pointer":"default",fontFamily:ff}}>Add</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════ MAIN APP ════ */
+function Board({isAdmin}){
+  const[products,setProducts]=useState(INIT);
+  const[openG,setOpenG]=useState(()=>{const m={};INIT.forEach(p=>m[p.id]=true);return m;});
+  const[filter,setFilter]=useState("all");
+  const[dropdown,setDropdown]=useState(null);
+  const[calendar,setCalendar]=useState(null);
+  const[chatOpen,setChatOpen]=useState(false);
+  const[chatMsg,setChatMsg]=useState("");
+  const[chatHist,setChatHist]=useState([]);
+  const[chatBusy,setChatBusy]=useState(false);
+  const chatEnd=useRef(null);
+  const[toast,setToast]=useState(null);
+  const[addForm,setAddForm]=useState(null);
+
+  useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
+  const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
+  useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
+  useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
+  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
+  const show=m=>setToast(m);
+
+  const changeSt=(pid,fi,ns)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);};
+  const setDt=(pid,fi,v)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,t:v}:f)}));setCalendar(null);show("Date → "+v);};
+  const openDrop=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setDropdown({pid,fi,top:r.bottom+4,left:r.left});setCalendar(null);};
+  const openCal=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setCalendar({pid,fi,rect:{top:r.top,bottom:r.bottom,left:r.left}});setDropdown(null);};
+  const addProduct=prod=>{persist([...products,prod]);setOpenG(g=>({...g,[prod.id]:true}));setAddForm(null);show("Product added");};
+  const addFeature=(pid,feat)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:[...p.features,feat]}));setAddForm(null);show("Feature added");};
+
+  const sendChat=async()=>{
+    if(!chatMsg.trim()||chatBusy)return;const msg=chatMsg.trim();setChatMsg("");setChatHist(h=>[...h,{r:"u",t:msg}]);setChatBusy(true);
+    try{
+      const st=products.map(p=>({id:p.id,name:p.name,features:p.features.map((f,i)=>({i,n:f.n,s:f.s,t:f.t}))}));
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:"Project board. State:\\n"+JSON.stringify(st)+"\\nStatuses: planning,in-dev,testing,rollout,complete,blocked\\nJSON only:\\n{\"updates\":[{\"productId\":\"x\",\"featureIndex\":0,\"field\":\"s\",\"value\":\"complete\"}],\"message\":\"text\"}\\nFields: s,t,d,n. Add: {\"productId\":\"x\",\"action\":\"add\",\"feature\":{\"n\":\"X\",\"s\":\"planning\",\"t\":\"TBD\",\"d\":\"X\"}}\\nDates: \\\"May 15, 2026\\\". Unclear: {\"updates\":[],\"message\":\"response\"}",messages:[{role:"user",content:msg}]})});
+      const data=await res.json();const raw=data.content.map(c=>c.text||"").join("").replace(/```json|```/g,"").trim();const parsed=JSON.parse(raw);
+      if(parsed.updates?.length>0){let up=products.map(p=>({...p,features:p.features.map(f=>({...f}))}));for(const u of parsed.updates){const pi=up.findIndex(p=>p.id===u.productId);if(pi<0)continue;if(u.action==="add"&&u.feature)up[pi].features.push(u.feature);else if(u.featureIndex!=null&&u.field&&up[pi].features[u.featureIndex])up[pi].features[u.featureIndex][u.field]=u.value;}persist(up);show(parsed.updates.length+" update(s) applied");}
+      setChatHist(h=>[...h,{r:"a",t:parsed.message||"Done."}]);
+    }catch(e){setChatHist(h=>[...h,{r:"a",t:"Try: \"Mark ISN push as complete\""}]);}
+    setChatBusy(false);
+  };
+
+  const totalF=products.reduce((a,p)=>a+p.features.length,0);
+  const doneF=products.reduce((a,p)=>a+p.features.filter(f=>f.s==="complete").length,0);
+  const blockedF=products.reduce((a,p)=>a+p.features.filter(f=>f.s==="blocked").length,0);
+  const deployedP=products.filter(p=>p.st==="deployed").length;
+  const filtered=products.filter(p=>{if(filter==="all")return true;if(filter==="deployed")return p.st==="deployed";if(filter==="active")return p.features.some(f=>f.s!=="complete");if(filter==="blocked")return p.features.some(f=>f.s==="blocked");return true;});
+
+  return(
+    <div style={{fontFamily:ff,background:C.light,minHeight:"100vh",paddingBottom:isAdmin&&chatOpen?330:isAdmin?56:20}}>
+      <header style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10,position:"sticky",top:0,zIndex:40}}>
+        <div>
+          <h1 style={{fontSize:19,fontWeight:900,color:C.dark,letterSpacing:"-0.03em"}}><span style={{color:C.green,marginRight:4}}>●</span>GreenWorks Dev Ops</h1>
+          <p style={{fontSize:11,color:C.sub,marginTop:1}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric",year:"numeric"})}{!isAdmin&&<span style={{marginLeft:8,color:"#bbb"}}>· View Only</span>}</p>
+        </div>
+        <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+          <FPill label="All" count={products.length} active={filter==="all"} onClick={()=>setFilter("all")} color={C.navy}/>
+          <FPill label="Deployed" count={deployedP} active={filter==="deployed"} onClick={()=>setFilter("deployed")} color={C.green}/>
+          <FPill label="Active" count={totalF-doneF} active={filter==="active"} onClick={()=>setFilter("active")} color={C.yellow}/>
+          {blockedF>0&&<FPill label="Blocked" count={blockedF} active={filter==="blocked"} onClick={()=>setFilter("blocked")} color={C.red}/>}
+          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
+        </div>
+      </header>
+
+      <main style={{padding:"14px 24px 16px"}}>
+        {filtered.map((prod,gIdx)=>{
+          const isOpen=openG[prod.id];const gc=GC[products.indexOf(prod)%GC.length];const ps=PS[prod.st];
+          const total=prod.features.length;const done=prod.features.filter(f=>f.s==="complete").length;const pct=total>0?Math.round((done/total)*100):0;
+          const rows=filter==="blocked"?prod.features.map((f,i)=>({f,i})).filter(x=>x.f.s==="blocked"):prod.features.map((f,i)=>({f,i}));
+          return(
+            <div key={prod.id} style={{marginBottom:8,animation:`fadeUp 0.3s ease ${gIdx*0.03}s both`}}>
+              <div onClick={()=>setOpenG(g=>({...g,[prod.id]:!g[prod.id]}))} style={{display:"flex",alignItems:"center",cursor:"pointer",background:C.white,borderRadius:isOpen?"8px 8px 0 0":"8px",border:`1px solid ${C.border}`,borderBottom:isOpen?`1px solid ${C.border}`:undefined}}>
+                <div style={{width:5,alignSelf:"stretch",background:gc,flexShrink:0,borderRadius:isOpen?"8px 0 0 0":"8px 0 0 8px"}}/>
+                <div style={{flex:1,padding:"10px 14px",display:"flex",alignItems:"center",gap:8,minWidth:0,flexWrap:"wrap"}}>
+                  <span style={{fontSize:9,color:C.sub,transition:"transform 0.15s",transform:isOpen?"rotate(90deg)":"",width:10,display:"inline-block"}}>▶</span>
+                  <span style={{fontSize:14,fontWeight:800,color:gc}}>{prod.name}</span>
+                  <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:ps.bg,color:prod.st==="building"?"#333":"#fff"}}>{ps.label}</span>
+                  {prod.since&&<span style={{fontSize:10,color:"#aaa"}}>{prod.since}</span>}
+                  <span style={{flex:1}}/>
+                  <Bat pct={pct} color={gc}/><span style={{fontSize:10,fontWeight:700,color:pct===100?C.green:C.sub,fontFamily:fm}}>{pct}%</span><span style={{fontSize:10,color:"#bbb"}}>{done}/{total}</span>
+                </div>
+              </div>
+              {isOpen&&(
+                <div style={{border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 8px 8px",background:C.white}}>
+                  <div style={{padding:"8px 14px 8px 19px",background:gc+"06",borderBottom:`1px solid ${C.border}`}}>
+                    <span style={{fontSize:12,color:C.dark,lineHeight:1.5}}><b style={{color:gc}}>Impact:</b> {prod.value}</span>
+                    {prod.who&&<span style={{fontSize:10,color:"#aaa",fontFamily:fm,marginLeft:10}}>{prod.who}</span>}
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"6px 14px 6px 19px",borderBottom:`1px solid ${C.border}`,background:"#fafbfc"}}>
+                    <span style={colH}>Feature</span><span style={colH}>Status</span><span style={colH}>Target</span><span style={{...colH,textAlign:"right"}}>Progress</span>
+                  </div>
+                  {rows.map(({f,i:ri},rowIdx)=>{const st2=STATUS[f.s];const isDone=f.s==="complete";return(
+                    <div key={ri} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"8px 14px 8px 19px",alignItems:"center",borderBottom:rowIdx<rows.length-1?"1px solid #f2f3f6":"none",background:isDone?"#fbfefc":C.white,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=isDone?"#fbfefc":C.white;}}>
+                      <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.d}</div></div>
+                      <div>{isAdmin?<button onClick={e=>openDrop(e,prod.id,ri)} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,fontFamily:ff,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,border:"none",cursor:"pointer",minWidth:86,boxShadow:f.s==="blocked"?`0 0 0 2px ${C.red}25`:"none",whiteSpace:"nowrap"}} onMouseEnter={e=>{e.currentTarget.style.filter="brightness(1.1)";}} onMouseLeave={e=>{e.currentTarget.style.filter="none";}}>{st2.label} <span style={{marginLeft:4,fontSize:8,opacity:0.6}}>▾</span></button>:<span style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,minWidth:86,textAlign:"center"}}>{st2.label}</span>}</div>
+                      <div>{isAdmin?<button onClick={e=>openCal(e,prod.id,ri)} style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,background:"transparent",border:"1px solid transparent",borderRadius:5,padding:"4px 8px",cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.background="#f6f7fa";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="transparent";e.currentTarget.style.background="transparent";}}>📅 {f.t}</button>:<span style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,padding:"4px 8px"}}>{f.t}</span>}</div>
+                      <div style={{display:"flex",justifyContent:"flex-end"}}><MiniBar phase={f.s}/></div>
+                    </div>
+                  );})}
+                  <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 120px 120px 90px",padding:"8px 14px 8px 19px",background:"#fafbfc",borderTop:`1px solid ${C.border}`}}>
+                    <span style={{fontSize:10,fontWeight:700,color:C.sub}}>{total} features · {done} complete · {total-done} in progress</span><span/><span/>
+                    <div style={{display:"flex",justifyContent:"flex-end"}}><Bat pct={pct} color={gc} wide/></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </main>
+
+      {/* PORTALS */}
+      {isAdmin&&dropdown&&(()=>{const p=products.find(x=>x.id===dropdown.pid);const cs=p?.features[dropdown.fi]?.s;return(
+        <div style={{position:"fixed",top:dropdown.top,left:Math.min(dropdown.left,window.innerWidth-170),zIndex:9999,animation:"fadeUp 0.12s ease"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,boxShadow:"0 10px 40px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:150}}>
+            <div style={{padding:"8px 12px 4px",fontSize:10,fontWeight:700,color:"#aaa",textTransform:"uppercase"}}>Change status</div>
+            {S_ORDER.map(sk=>(<div key={sk} onClick={()=>changeSt(dropdown.pid,dropdown.fi,sk)} style={{padding:"9px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:cs===sk?"#f5f6f8":"transparent",transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background="#f0f1f5";}} onMouseLeave={e=>{e.currentTarget.style.background=cs===sk?"#f5f6f8":"transparent";}}><div style={{width:12,height:12,borderRadius:4,background:STATUS[sk].bg}}/><span style={{fontSize:13,color:C.dark,fontWeight:cs===sk?700:500}}>{STATUS[sk].label}</span>{cs===sk&&<span style={{marginLeft:"auto",color:C.green}}>✓</span>}</div>))}
+          </div>
+        </div>);})()}
+
+      {isAdmin&&calendar&&(()=>{const p=products.find(x=>x.id===calendar.pid);return<CalPicker anchor={calendar.rect} val={p?.features[calendar.fi]?.t} onPick={v=>setDt(calendar.pid,calendar.fi,v)} onClear={()=>setDt(calendar.pid,calendar.fi,"TBD")} onClose={()=>setCalendar(null)}/>;})()}
+
+      {isAdmin&&addForm&&<AddForm type={addForm} products={products} onSubmit={addForm==="product"?addProduct:addFeature} onCancel={()=>setAddForm(null)}/>}
+
+      {toast&&<div style={{position:"fixed",bottom:chatOpen?340:70,left:"50%",transform:"translateX(-50%)",zIndex:9998,background:C.dark,color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 6px 20px rgba(0,0,0,0.2)",animation:"toastIn 0.2s ease"}}>✓ {toast}</div>}
+
+      {/* CHAT — admin only */}
+      {isAdmin&&(
+        <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:50}}>
+          {!chatOpen?(
+            <div onClick={()=>setChatOpen(true)} style={{background:C.white,borderTop:`1px solid ${C.border}`,padding:"10px 24px",display:"flex",alignItems:"center",gap:10,cursor:"pointer"}} onMouseEnter={e=>{e.currentTarget.style.background="#f8f9fb";}} onMouseLeave={e=>{e.currentTarget.style.background=C.white;}}>
+              <span>💬</span><span style={{fontSize:13,color:C.sub}}>Update board with AI assistant</span>
+            </div>
+          ):(
+            <div style={{background:C.white,borderTop:`1px solid ${C.border}`,boxShadow:"0 -6px 24px rgba(0,0,0,0.08)",display:"flex",flexDirection:"column",height:320}}>
+              <div style={{padding:"10px 18px",borderBottom:"1px solid #f0f1f5",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+                <span style={{fontSize:13,fontWeight:700,color:C.dark}}>💬 Board Assistant</span>
+                <button onClick={()=>setChatOpen(false)} style={{background:"#f0f1f5",border:"none",width:26,height:26,borderRadius:6,fontSize:14,color:C.sub,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+              <div style={{flex:1,overflowY:"auto",padding:"14px 18px",display:"flex",flexDirection:"column",gap:8}}>
+                {chatHist.length===0&&<div style={{padding:"16px 0",textAlign:"center",fontSize:12,color:"#bbb",lineHeight:1.7}}>Try: <b style={{color:C.sub}}>"Mark ISN push as complete"</b></div>}
+                {chatHist.map((m,i)=><div key={i} style={{display:"flex",justifyContent:m.r==="u"?"flex-end":"flex-start"}}><div style={{maxWidth:"80%",padding:"9px 14px",borderRadius:14,background:m.r==="u"?C.navy:"#f0f1f5",color:m.r==="u"?"#fff":C.dark,fontSize:13,lineHeight:1.5,borderBottomRightRadius:m.r==="u"?4:14,borderBottomLeftRadius:m.r==="u"?14:4}}>{m.t}</div></div>)}
+                {chatBusy&&<div style={{display:"flex",gap:4,padding:"8px 0"}}>{[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:C.navy,animation:`dotPulse 1s ease ${i*0.2}s infinite`}}/>)}</div>}
+                <div ref={chatEnd}/>
+              </div>
+              <div style={{padding:"10px 18px 14px",borderTop:"1px solid #f0f1f5",display:"flex",gap:8,flexShrink:0}}>
+                <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}}} placeholder="Tell me what to update..." style={{flex:1,padding:"10px 14px",borderRadius:8,border:`1.5px solid ${C.border}`,fontSize:13,fontFamily:ff,outline:"none"}} onFocus={e=>{e.target.style.borderColor=C.navy;}} onBlur={e=>{e.target.style.borderColor=C.border;}}/>
+                <button onClick={sendChat} disabled={chatBusy||!chatMsg.trim()} style={{padding:"10px 18px",borderRadius:8,border:"none",background:chatMsg.trim()?C.navy:"#ddd",color:"#fff",fontSize:13,fontWeight:700,cursor:chatMsg.trim()?"pointer":"default",fontFamily:ff}}>Send</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <footer style={{padding:"12px 28px 20px",textAlign:"center",fontSize:10,color:"#ccc",fontFamily:fm}}>
+        GreenWorks Inspections & Engineering · Updated {new Date().toLocaleDateString("en-US")}
+      </footer>
+    </div>
+  );
+}
+
+function FPill({label,count,active,onClick,color}){return<button onClick={onClick} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:active?color+"12":"transparent",border:`1.5px solid ${active?color:"#e0e3e9"}`,cursor:"pointer",fontFamily:ff}}><span style={{fontSize:14,fontWeight:800,color:active?color:C.sub,fontFamily:fm}}>{count}</span><span style={{fontSize:10,fontWeight:600,color:active?color:C.sub}}>{label}</span></button>;}
+function Bat({pct,color,wide}){return<div style={{width:wide?72:52,height:wide?9:6,borderRadius:4,background:"#ecedf0",overflow:"hidden",flexShrink:0}}><div style={{width:pct+"%",height:"100%",borderRadius:4,background:pct===100?C.green:color,transition:"width 0.4s"}}/></div>;}
+function MiniBar({phase}){const steps=["planning","in-dev","testing","rollout","complete"];const bl=phase==="blocked";const idx=bl?-1:steps.indexOf(phase);return<div style={{display:"flex",gap:2}}>{steps.map((s,i)=><div key={s} style={{width:11,height:5,borderRadius:2,background:!bl&&i<=idx?(i===idx?STATUS[phase].bg:STATUS[phase].bg+"50"):"#ecedf0"}}/>)}{bl&&<div style={{width:11,height:5,borderRadius:2,background:C.red}}/>}</div>;}
+const colH={fontSize:9,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.05em"};
+const addBtnStyle={padding:"5px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,background:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:ff,color:C.sub};
+
+/* ════ ROOT ════ */
+function Root(){
+  const access=getAccessLevel();
+  if(!access)return <AccessGate/>;
+  return <Board isAdmin={access==="admin"}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
+</script>
+</body>
+</html>
