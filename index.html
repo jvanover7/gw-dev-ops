@@ -50,6 +50,41 @@ function parseDate(s){if(!s||s==="TBD")return null;const d=new Date(s);return is
 function fmtDate(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
 
 
+
+/* === SUPABASE CONFIG === */
+const SB_URL = "https://qfbjmpticicvkdfkvktm.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmYmptcHRpY2ljdmtkZmt2a3RtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNjUyNTEsImV4cCI6MjA5MTk0MTI1MX0.o4oWgFKwU3oSa81V2_LKo6q0zzQIbQktoW0vI-VAdq0";
+const SB_HEADERS = {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY};
+
+async function fetchBoard() {
+  try {
+    const [pRes, fRes] = await Promise.all([
+      fetch(SB_URL+"/rest/v1/dev_ops_products?select=*&order=sort_order", {headers:SB_HEADERS}),
+      fetch(SB_URL+"/rest/v1/dev_ops_features?select=*&order=sort_order", {headers:SB_HEADERS})
+    ]);
+    const products = await pRes.json();
+    const features = await fRes.json();
+    return products.map(p => ({
+      id: p.id,
+      nm: p.name,
+      st: p.status,
+      since: p.since || null,
+      val: p.impact || "",
+      who: p.users || "",
+      ft: features.filter(f => f.product_id === p.id).map(f => ({
+        n: f.name,
+        s: f.status,
+        t: f.target_date || "TBD",
+        d: f.description || ""
+      }))
+    }));
+  } catch(e) {
+    console.error("Supabase fetch failed, using fallback data:", e);
+    return DATA;
+  }
+}
+
+
 /* === SHARE MODAL === */
 function ShareModal({onClose}) {
   const [cp, setCp] = useState(null);
@@ -274,6 +309,8 @@ function AddForm({type,onSubmit,onCancel,products}){
 /* ════ MAIN APP ════ */
 function Board({isAdmin}){
   const[products,setProducts]=useState(INIT);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{fetchBoard().then(d=>{if(d&&d.length>0){setProducts(d);setOpenG(prev=>{const m={...prev};d.forEach(p=>{if(!(p.id in m))m[p.id]=true;});return m;});}setLoading(false);}).catch(()=>setLoading(false));},[]);
   const[openG,setOpenG]=useState(()=>{const m={};INIT.forEach(p=>m[p.id]=true);return m;});
   const[filter,setFilter]=useState("all");
   const[dropdown,setDropdown]=useState(null);
@@ -289,6 +326,7 @@ function Board({isAdmin}){
 
   useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
   const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
+  useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});},30000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
