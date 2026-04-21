@@ -108,6 +108,18 @@ async function fetchBoard() {
 
 
 
+
+async function updateFeatureSB(productId, featureName, field, value) {
+  try {
+    const col = field === "s" ? "status" : "target_date";
+    await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(productId)+"&name=eq."+encodeURIComponent(featureName), {
+      method: "PATCH",
+      headers: {...SB_HEADERS, "Content-Type":"application/json", "Prefer":"return=minimal"},
+      body: JSON.stringify({[col]: value})
+    });
+  } catch(e) { console.error("SB update error:", e); }
+}
+
 async function fetchActivity() {
   try {
     const res = await fetch(SB_URL+"/rest/v1/dev_ops_activity?select=*&order=created_at.desc&limit=30", {headers:SB_HEADERS});
@@ -407,8 +419,8 @@ function Board({isAdmin}){
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
   const show=m=>setToast(m);
 
-  const changeSt=(pid,fi,ns)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);};
-  const setDt=(pid,fi,v)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,t:v}:f)}));setCalendar(null);show("Date → "+v);};
+  const changeSt=(pid,fi,ns)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);const fp=products.find(x=>x.id===pid);if(fp&&fp.features[fi])updateFeatureSB(pid,fp.features[fi].n,"s",ns);};
+  const setDt=(pid,fi,v)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,t:v}:f)}));setCalendar(null);show("Date → "+v);const fp2=products.find(x=>x.id===pid);if(fp2&&fp2.features[fi])updateFeatureSB(pid,fp2.features[fi].n,"t",v);};
   const openDrop=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setDropdown({pid,fi,top:r.bottom+4,left:r.left});setCalendar(null);};
   const openCal=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setCalendar({pid,fi,rect:{top:r.top,bottom:r.bottom,left:r.left}});setDropdown(null);};
   const addProduct=prod=>{persist([...products,prod]);setOpenG(g=>({...g,[prod.id]:true}));setAddForm(null);show("Product added");};
