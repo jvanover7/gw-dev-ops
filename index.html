@@ -431,7 +431,8 @@ function Board({isAdmin}){
   const doneF=products.reduce((a,p)=>a+p.features.filter(f=>f.s==="complete").length,0);
   const blockedF=products.reduce((a,p)=>a+p.features.filter(f=>f.s==="blocked").length,0);
   const deployedP=products.filter(p=>p.st==="deployed").length;
-  const filtered=products.filter(p=>{if(filter==="all")return true;if(filter==="deployed")return p.st==="deployed";if(filter==="active")return p.features.some(f=>f.s!=="complete");if(filter==="blocked")return p.features.some(f=>f.s==="blocked");return true;});
+  const deadlineF=products.reduce((a,p)=>a+p.features.filter(f=>f.t&&f.t!=="TBD"&&f.s!=="complete").length,0);
+  const filtered=products.filter(p=>{if(filter==="all")return true;if(filter==="deployed")return p.st==="deployed";if(filter==="active")return p.features.some(f=>f.s!=="complete");if(filter==="blocked")return p.features.some(f=>f.s==="blocked");if(filter==="deadlines")return p.features.some(f=>f.t&&f.t!=="TBD"&&f.s!=="complete");return true;});
 
   return(
     <div style={{fontFamily:ff,background:C.light,minHeight:"100vh",paddingBottom:isAdmin&&chatOpen?330:isAdmin?56:20}}>
@@ -445,7 +446,7 @@ function Board({isAdmin}){
           <FPill label="Deployed" count={deployedP} active={filter==="deployed"} onClick={()=>setFilter("deployed")} color={C.green}/>
           <FPill label="Active" count={totalF-doneF} active={filter==="active"} onClick={()=>setFilter("active")} color={C.yellow}/>
           {blockedF>0&&<FPill label="Blocked" count={blockedF} active={filter==="blocked"} onClick={()=>setFilter("blocked")} color={C.red}/>}
-          <button onClick={()=>setFlt("deadlines")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:flt==="deadlines"?C.navy+"12":"transparent",border:`1.5px solid ${flt==="deadlines"?C.navy:"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:flt==="deadlines"?C.navy:C.sub,fontFamily:"monospace"}}>{deadlineF}</span><span style={{fontSize:10,fontWeight:600,color:flt==="deadlines"?C.navy:C.sub}}>Deadlines</span></button>
+          <button onClick={()=>setFilter("deadlines")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:filter==="deadlines"?C.navy+"12":"transparent",border:`1.5px solid ${filter==="deadlines"?C.navy:"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:filter==="deadlines"?C.navy:C.sub,fontFamily:"monospace"}}>{deadlineF}</span><span style={{fontSize:10,fontWeight:600,color:filter==="deadlines"?C.navy:C.sub}}>Deadlines</span></button>
           <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>🔔 Activity</button>
           {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
@@ -455,7 +456,7 @@ function Board({isAdmin}){
         {filtered.map((prod,gIdx)=>{
           const isOpen=openG[prod.id];const gc=GC[products.indexOf(prod)%GC.length];const ps=PS[prod.st];
           const total=prod.features.length;const done=prod.features.filter(f=>f.s==="complete").length;const pct=total>0?Math.round((done/total)*100):0;
-          const rows=filter==="blocked"?prod.features.map((f,i)=>({f,i})).filter(x=>x.f.s==="blocked"):prod.features.map((f,i)=>({f,i}));
+          const rows=filter==="blocked"?prod.features.map((f,i)=>({f,i})).filter(x=>x.f.s==="blocked"):filter==="deadlines"?prod.features.map((f,i)=>({f,i})).filter(x=>x.f.t&&x.f.t!=="TBD"&&x.f.s!=="complete").sort((a,b)=>new Date(a.f.t)-new Date(b.f.t)):prod.features.map((f,i)=>({f,i}));
           return(
             <div key={prod.id} style={{marginBottom:8,animation:`fadeUp 0.3s ease ${gIdx*0.03}s both`}}>
               <div onClick={()=>setOpenG(g=>({...g,[prod.id]:!g[prod.id]}))} style={{display:"flex",alignItems:"center",cursor:"pointer",background:C.white,borderRadius:isOpen?"8px 8px 0 0":"8px",border:`1px solid ${C.border}`,borderBottom:isOpen?`1px solid ${C.border}`:undefined}}>
