@@ -107,6 +107,58 @@ async function fetchBoard() {
 }
 
 
+
+async function fetchActivity() {
+  try {
+    const res = await fetch(SB_URL+"/rest/v1/dev_ops_activity?select=*&order=created_at.desc&limit=30", {headers:SB_HEADERS});
+    return await res.json();
+  } catch(e) { return []; }
+}
+
+
+/* === ACTIVITY PANEL === */
+function ActivityPanel({onClose}) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { fetchActivity().then(d => { setItems(d); setLoading(false); }); }, []);
+  const icons = {added:"\u2795",completed:"\u2705",status_changed:"\u{1F504}",date_changed:"\u{1F4C5}",created:"\u{1F680}"};
+  const colors = {added:C.navy,completed:C.green,status_changed:C.yellow,date_changed:C.blue,created:C.purple};
+  const timeAgo = (d) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const mins = Math.floor(diff/60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + "m ago";
+    const hrs = Math.floor(mins/60);
+    if (hrs < 24) return hrs + "h ago";
+    const days = Math.floor(hrs/24);
+    return days + "d ago";
+  };
+  return (
+    <div style={{position:"fixed",top:0,right:0,bottom:0,width:360,maxWidth:"90vw",background:C.white,boxShadow:"-8px 0 40px rgba(0,0,0,0.12)",zIndex:9998,display:"flex",flexDirection:"column",fontFamily:"inherit"}} onClick={e=>e.stopPropagation()}>
+      <div style={{padding:"18px 20px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div><h3 style={{fontSize:15,fontWeight:800,color:C.dark,margin:0}}>Recent Activity</h3><p style={{fontSize:11,color:C.sub,marginTop:2}}>Auto-logged changes</p></div>
+        <button onClick={onClose} style={{background:"#f0f1f5",border:"none",width:28,height:28,borderRadius:7,fontSize:15,color:C.sub,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>\u2715</button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"8px 0"}}>
+        {loading && <div style={{padding:40,textAlign:"center",color:"#bbb",fontSize:13}}>Loading...</div>}
+        {!loading && items.length===0 && <div style={{padding:40,textAlign:"center",color:"#bbb",fontSize:13}}>No activity yet</div>}
+        {items.map((item,i) => (
+          <div key={item.id||i} style={{padding:"12px 20px",borderBottom:"1px solid #f5f5f7",display:"flex",gap:10,alignItems:"flex-start"}} onMouseEnter={e=>{e.currentTarget.style.background="#fafbfc";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+            <div style={{width:28,height:28,borderRadius:8,background:(colors[item.action]||C.navy)+"12",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{icons[item.action]||"\u2022"}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,color:C.dark,fontWeight:500,lineHeight:1.4}}>{item.summary}</div>
+              <div style={{fontSize:11,color:"#aaa",marginTop:3,display:"flex",gap:8}}>
+                <span style={{color:colors[item.action]||C.sub,fontWeight:600}}>{item.product_name}</span>
+                <span>{timeAgo(item.created_at)}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* === SHARE MODAL === */
 function ShareModal({onClose}) {
   const [cp, setCp] = useState(null);
@@ -345,6 +397,7 @@ function Board({isAdmin}){
   const[toast,setToast]=useState(null);
   const[addForm,setAddForm]=useState(null);
   const[showShare,setShowShare]=useState(false);
+  const[showActivity,setShowActivity]=useState(false);
 
   useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
   const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
@@ -392,6 +445,7 @@ function Board({isAdmin}){
           <FPill label="Deployed" count={deployedP} active={filter==="deployed"} onClick={()=>setFilter("deployed")} color={C.green}/>
           <FPill label="Active" count={totalF-doneF} active={filter==="active"} onClick={()=>setFilter("active")} color={C.yellow}/>
           {blockedF>0&&<FPill label="Blocked" count={blockedF} active={filter==="blocked"} onClick={()=>setFilter("blocked")} color={C.red}/>}
+          <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>\u{1F514} Activity</button>
           {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
       </header>
@@ -453,6 +507,7 @@ function Board({isAdmin}){
 
       {isAdmin&&calendar&&(()=>{const p=products.find(x=>x.id===calendar.pid);return<CalPicker anchor={calendar.rect} val={p?.features[calendar.fi]?.t} onPick={v=>setDt(calendar.pid,calendar.fi,v)} onClear={()=>setDt(calendar.pid,calendar.fi,"TBD")} onClose={()=>setCalendar(null)}/>;})()}
 
+      {showActivity&&<><div onClick={()=>setShowActivity(false)} style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.2)"}}/><ActivityPanel onClose={()=>setShowActivity(false)}/></>}
       {isAdmin&&showShare&&<ShareModal onClose={()=>setShowShare(false)}/>}
       {isAdmin&&addForm&&<AddForm type={addForm} products={products} onSubmit={addForm==="product"?addProduct:addFeature} onCancel={()=>setAddForm(null)}/>}
 
