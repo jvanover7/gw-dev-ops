@@ -121,7 +121,7 @@ function ActivityPanel({onClose}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { fetchActivity().then(d => { setItems(d); setLoading(false); }); }, []);
-  const icons = {added:"\u2795",completed:"\u2705",status_changed:"\u{1F504}",date_changed:"\u{1F4C5}",created:"\u{1F680}"};
+  const icons = {added:"➕",completed:"✅",status_changed:"🔄",date_changed:"📅",created:"🚀"};
   const colors = {added:C.navy,completed:C.green,status_changed:C.yellow,date_changed:C.blue,created:C.purple};
   const timeAgo = (d) => {
     const diff = Date.now() - new Date(d).getTime();
@@ -144,7 +144,7 @@ function ActivityPanel({onClose}) {
         {!loading && items.length===0 && <div style={{padding:40,textAlign:"center",color:"#bbb",fontSize:13}}>No activity yet</div>}
         {items.map((item,i) => (
           <div key={item.id||i} style={{padding:"12px 20px",borderBottom:"1px solid #f5f5f7",display:"flex",gap:10,alignItems:"flex-start"}} onMouseEnter={e=>{e.currentTarget.style.background="#fafbfc";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
-            <div style={{width:28,height:28,borderRadius:8,background:(colors[item.action]||C.navy)+"12",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{icons[item.action]||"\u2022"}</div>
+            <div style={{width:28,height:28,borderRadius:8,background:(colors[item.action]||C.navy)+"12",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,flexShrink:0}}>{icons[item.action]||"•"}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13,color:C.dark,fontWeight:500,lineHeight:1.4}}>{item.summary}</div>
               <div style={{fontSize:11,color:"#aaa",marginTop:3,display:"flex",gap:8}}>
@@ -445,7 +445,7 @@ function Board({isAdmin}){
           <FPill label="Deployed" count={deployedP} active={filter==="deployed"} onClick={()=>setFilter("deployed")} color={C.green}/>
           <FPill label="Active" count={totalF-doneF} active={filter==="active"} onClick={()=>setFilter("active")} color={C.yellow}/>
           {blockedF>0&&<FPill label="Blocked" count={blockedF} active={filter==="blocked"} onClick={()=>setFilter("blocked")} color={C.red}/>}
-          <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>\u{1F514} Activity</button>
+          <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>🔔 Activity</button>
           {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
       </header>
