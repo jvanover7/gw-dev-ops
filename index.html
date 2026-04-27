@@ -109,6 +109,35 @@ async function fetchBoard() {
 
 
 
+
+async function fetchTeam() {
+  try {
+    var res = await fetch(SB_URL+"/rest/v1/dev_ops_team?select=*&active=eq.true", {headers:SB_HEADERS});
+    return await res.json();
+  } catch(e) { return []; }
+}
+
+async function assignFeature(productId, featureName, memberId) {
+  try {
+    await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(productId)+"&name=eq."+encodeURIComponent(featureName), {
+      method: "PATCH",
+      headers: Object.assign({}, SB_HEADERS, {"Content-Type":"application/json", "Prefer":"return=minimal"}),
+      body: JSON.stringify({assigned_to: memberId || null})
+    });
+  } catch(e) { console.error("Assign error:", e); }
+}
+
+async function updateFeatureSB(productId, featureName, field, value) {
+  try {
+    var col = field === "s" ? "status" : "target_date";
+    await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(productId)+"&name=eq."+encodeURIComponent(featureName), {
+      method: "PATCH",
+      headers: Object.assign({}, SB_HEADERS, {"Content-Type":"application/json", "Prefer":"return=minimal"}),
+      body: JSON.stringify({[col]: value})
+    });
+  } catch(e) { console.error("SB update error:", e); }
+}
+
 async function fetchActivity() {
   try {
     const res = await fetch(SB_URL+"/rest/v1/dev_ops_activity?select=*&order=created_at.desc&limit=30", {headers:SB_HEADERS});
