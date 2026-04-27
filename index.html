@@ -399,13 +399,10 @@ function Board({isAdmin}){
   const[addForm,setAddForm]=useState(null);
   const[showShare,setShowShare]=useState(false);
   const[showActivity,setShowActivity]=useState(false);
-  const[assignDD,setAssignDD]=useState(null);
 
   useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
   const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
   useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});},30000);return()=>clearInterval(iv);},[]);
-  useEffect(()=>{if(assignDD){const h2=()=>setAssignDD(null);const t2=setTimeout(()=>document.addEventListener("click",h2),10);return()=>{clearTimeout(t2);document.removeEventListener("click",h2);};}},
-  [assignDD]);
   useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
@@ -492,7 +489,7 @@ function Board({isAdmin}){
                       <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.type==="bug"?"🐛 ":""}{f.d}</div>
                         <div style={{display:"flex",gap:4,marginTop:2,flexWrap:"wrap"}}>
                           {f.assigned_to&&team.length>0&&(()=>{const tm=team.find(t=>t.id===f.assigned_to);return tm?<span style={{fontSize:9,fontWeight:700,color:"#fff",background:f.s==="complete"?"#aaa":"#0073ea",padding:"1px 7px",borderRadius:8}}>{tm.name.split(" ")[0]}</span>:null;})()}
-                          {isAdmin&&!f.assigned_to&&f.s!=="complete"&&<button onClick={e=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setAssignDD({pid:prod.id,fi:ri,fn:f.n,top:r.bottom+4,left:r.left});}} style={{fontSize:9,color:"#bbb",background:"#f0f1f5",border:"1px dashed #ddd",borderRadius:6,padding:"1px 6px",cursor:"pointer"}}>+ assign</button>}
+                          {isAdmin&&!f.assigned_to&&f.s!=="complete"&&<select onChange={e=>{const mid=e.target.value;if(mid){assignFeature(prod.id,f.n,mid);setProducts(ps=>ps.map(p=>p.id!==prod.id?p:{...p,features:p.features.map((ft,idx)=>idx===ri?{...ft,assigned_to:mid}:ft)}));show("Assigned to "+mid);}e.target.value="";}} onClick={e=>e.stopPropagation()} style={{fontSize:9,color:"#bbb",background:"#f0f1f5",border:"1px dashed #ddd",borderRadius:6,padding:"2px 4px",cursor:"pointer"}} defaultValue=""><option value="">+ assign</option>{team.filter(t=>t.role==="developer").map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>}
                         </div>
                       </div>
                       <div>{isAdmin?<button onClick={e=>openDrop(e,prod.id,ri)} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,fontFamily:ff,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,border:"none",cursor:"pointer",minWidth:86,boxShadow:f.s==="blocked"?`0 0 0 2px ${C.red}25`:"none",whiteSpace:"nowrap"}} onMouseEnter={e=>{e.currentTarget.style.filter="brightness(1.1)";}} onMouseLeave={e=>{e.currentTarget.style.filter="none";}}>{st2.label} <span style={{marginLeft:4,fontSize:8,opacity:0.6}}>▾</span></button>:<span style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,minWidth:86,textAlign:"center"}}>{st2.label}</span>}</div>
@@ -526,20 +523,6 @@ function Board({isAdmin}){
       {isAdmin&&showShare&&<ShareModal onClose={()=>setShowShare(false)}/>}
       {isAdmin&&addForm&&<AddForm type={addForm} products={products} onSubmit={addForm==="product"?addProduct:addFeature} onCancel={()=>setAddForm(null)}/>}
 
-      {assignDD&&(()=>{const devs=team.filter(t=>t.role==="developer");return(
-        <div style={{position:"fixed",top:assignDD.top,left:Math.min(assignDD.left,window.innerWidth-200),zIndex:9999}} onClick={e=>e.stopPropagation()}>
-          <div style={{background:C.white,borderRadius:10,border:"1px solid "+C.border,boxShadow:"0 10px 40px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:180}}>
-            <div style={{padding:"8px 12px 4px",fontSize:10,fontWeight:700,color:"#aaa",textTransform:"uppercase"}}>Assign to</div>
-            {devs.map(tm=>(
-              <div key={tm.id} onClick={()=>{assignFeature(assignDD.pid,assignDD.fn,tm.id);setProducts(ps=>ps.map(p=>p.id!==assignDD.pid?p:{...p,features:p.features.map((ft,idx)=>idx===assignDD.fi?{...ft,assigned_to:tm.id}:ft)}));show("Assigned to "+tm.name);setAssignDD(null);}} style={{padding:"9px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10}} onMouseEnter={e=>{e.currentTarget.style.background="#f0f1f5";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
-                <div style={{width:24,height:24,borderRadius:12,background:"#0073ea",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff"}}>{tm.name.charAt(0)}</div>
-                <span style={{fontSize:13,color:C.dark,fontWeight:500}}>{tm.name}</span>
-              </div>
-            ))}
-            <div onClick={()=>setAssignDD(null)} style={{padding:"8px 14px",cursor:"pointer",borderTop:"1px solid "+C.border,fontSize:12,color:"#aaa",textAlign:"center"}}>Cancel</div>
-          </div>
-        </div>);})()}
-      
       {toast&&<div style={{position:"fixed",bottom:chatOpen?340:70,left:"50%",transform:"translateX(-50%)",zIndex:9998,background:C.dark,color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 6px 20px rgba(0,0,0,0.2)",animation:"toastIn 0.2s ease"}}>✓ {toast}</div>}
 
       {/* CHAT — admin only */}
