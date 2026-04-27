@@ -98,8 +98,7 @@ async function fetchBoard() {
         s: f.status,
         t: f.target_date || "TBD",
         d: f.description || "",
-        type: f.type || "feature",
-        assigned_to: f.assigned_to || null
+        type: f.type || "feature"
       }))
     }));
   } catch(e) {
@@ -109,33 +108,6 @@ async function fetchBoard() {
 }
 
 
-
-
-async function fetchTeam() {
-  try {
-    const res = await fetch(SB_URL+"/rest/v1/dev_ops_team?select=*&active=eq.true", {headers:SB_HEADERS});
-    return await res.json();
-  } catch(e) { return []; }
-}
-
-async function getAccessRole(key) {
-  try {
-    const res = await fetch(SB_URL+"/rest/v1/dev_ops_team?access_key=eq."+encodeURIComponent(key)+"&select=*", {headers:SB_HEADERS});
-    const members = await res.json();
-    if (members.length > 0) return members[0];
-    return null;
-  } catch(e) { return null; }
-}
-
-async function assignFeature(productId, featureName, memberId) {
-  try {
-    await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(productId)+"&name=eq."+encodeURIComponent(featureName), {
-      method: "PATCH",
-      headers: {...SB_HEADERS, "Content-Type":"application/json", "Prefer":"return=minimal"},
-      body: JSON.stringify({assigned_to: memberId || null})
-    });
-  } catch(e) { console.error("Assign error:", e); }
-}
 
 async function fetchActivity() {
   try {
@@ -413,9 +385,7 @@ function AddForm({type,onSubmit,onCancel,products}){
 function Board({isAdmin}){
   const[products,setProducts]=useState(INIT);
   const[loading,setLoading]=useState(true);
-  const[team,setTeam]=useState([]);
-  const[currentUser,setCurrentUser]=useState(null);
-  useEffect(()=>{fetchTeam().then(t=>setTeam(t||[]));fetchBoard().then(d=>{if(d&&d.length>0){setProducts(d);setOpenG(prev=>{const m={...prev};d.forEach(p=>{if(!(p.id in m))m[p.id]=true;});return m;});}setLoading(false);}).catch(()=>setLoading(false));},[]);
+  useEffect(()=>{fetchBoard().then(d=>{if(d&&d.length>0){setProducts(d);setOpenG(prev=>{const m={...prev};d.forEach(p=>{if(!(p.id in m))m[p.id]=true;});return m;});}setLoading(false);}).catch(()=>setLoading(false));},[]);
   const[openG,setOpenG]=useState(()=>{const m={};INIT.forEach(p=>m[p.id]=true);return m;});
   const[filter,setFilter]=useState("all");
   const[dropdown,setDropdown]=useState(null);
@@ -482,8 +452,7 @@ function Board({isAdmin}){
           <button onClick={()=>setFilter("deadlines")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:filter==="deadlines"?C.navy+"12":"transparent",border:`1.5px solid ${filter==="deadlines"?C.navy:"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:filter==="deadlines"?C.navy:C.sub,fontFamily:"monospace"}}>{deadlineF}</span><span style={{fontSize:10,fontWeight:600,color:filter==="deadlines"?C.navy:C.sub}}>Deadlines</span></button>
           <button onClick={()=>setFilter("bugs")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:filter==="bugs"?"#e2445c12":"transparent",border:`1.5px solid ${filter==="bugs"?"#e2445c":"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:filter==="bugs"?"#e2445c":"#676879",fontFamily:"monospace"}}>{bugsActive>0?bugsActive:bugsTotal}</span><span style={{fontSize:10,fontWeight:600,color:filter==="bugs"?"#e2445c":"#676879"}}>{bugsActive>0?"Bugs":"Bugs"}</span></button>
           <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>🔔 Activity</button>
-          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>{const name=prompt("New team member name:");if(!name)return;const id=name.toLowerCase().replace(/\s+/g,"-");const key="gwdev-"+id+"-2026";fetch(SB_URL+"/rest/v1/dev_ops_team",{method:"POST",headers:{...SB_HEADERS,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({id,name,role:"developer",access_key:key})}).then(()=>{fetchTeam().then(t=>setTeam(t));show("Added "+name+" — key: "+key);alert("Team member link:\nhttps://gw-dev-ops.vercel.app?key="+key);});}} style={{...addBtnStyle,background:"#a25ddc10",color:"#a25ddc",borderColor:"#a25ddc30"}}>+ Team</button>
-          <button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
+          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
       </header>
 
@@ -516,7 +485,12 @@ function Board({isAdmin}){
                   </div>
                   {rows.map(({f,i:ri},rowIdx)=>{const st2=STATUS[f.s];const isDone=f.s==="complete";return(
                     <div key={ri} className="gw-row" style={{padding:"8px 14px 8px 19px",alignItems:"center",borderBottom:rowIdx<rows.length-1?"1px solid #f2f3f6":"none",background:isDone?"#fbfefc":C.white,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.hover;}} onMouseLeave={e=>{e.currentTarget.style.background=isDone?"#fbfefc":C.white;}}>
-                      <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.d}</div></div>
+                      <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.type==="bug"?"🐛 ":""}{f.d}</div>
+                        <div style={{display:"flex",gap:4,marginTop:2,flexWrap:"wrap"}}>
+                          {f.assigned_to&&team.length>0&&(()=>{const tm=team.find(t=>t.id===f.assigned_to);return tm?<span style={{fontSize:9,fontWeight:700,color:"#fff",background:f.s==="complete"?"#aaa":"#0073ea",padding:"1px 7px",borderRadius:8}}>{tm.name.split(" ")[0]}</span>:null;})()}
+                          {isAdmin&&!f.assigned_to&&f.s!=="complete"&&<button onClick={e=>{e.stopPropagation();const devs=team.filter(t=>t.role==="developer");const opts=devs.map(t=>t.id+"="+t.name).join(", ");const mid=prompt("Assign to:\n"+opts);if(mid&&team.find(t=>t.id===mid)){assignFeature(prod.id,f.n,mid);setProducts(ps=>ps.map(p=>p.id!==prod.id?p:{...p,features:p.features.map((ft,idx)=>idx===ri?{...ft,assigned_to:mid}:ft)}));show("Assigned to "+mid);}}} style={{fontSize:9,color:"#bbb",background:"#f0f1f5",border:"1px dashed #ddd",borderRadius:6,padding:"1px 6px",cursor:"pointer"}}>+ assign</button>}
+                        </div>
+                      </div>
                       <div>{isAdmin?<button onClick={e=>openDrop(e,prod.id,ri)} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,fontFamily:ff,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,border:"none",cursor:"pointer",minWidth:86,boxShadow:f.s==="blocked"?`0 0 0 2px ${C.red}25`:"none",whiteSpace:"nowrap"}} onMouseEnter={e=>{e.currentTarget.style.filter="brightness(1.1)";}} onMouseLeave={e=>{e.currentTarget.style.filter="none";}}>{st2.label} <span style={{marginLeft:4,fontSize:8,opacity:0.6}}>▾</span></button>:<span style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,minWidth:86,textAlign:"center"}}>{st2.label}</span>}</div>
                       <div>{isAdmin?<button onClick={e=>openCal(e,prod.id,ri)} style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,background:"transparent",border:"1px solid transparent",borderRadius:5,padding:"4px 8px",cursor:"pointer",whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:4}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.background="#f6f7fa";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="transparent";e.currentTarget.style.background="transparent";}}>📅 {f.t}</button>:<span style={{fontSize:11,fontFamily:fm,color:f.t==="TBD"?"#bbb":C.sub,padding:"4px 8px"}}>{f.t}</span>}</div>
                       <div style={{display:"flex",justifyContent:"flex-end"}}><MiniBar phase={f.s}/></div>
