@@ -428,9 +428,10 @@ function Board({isAdmin}){
   const[addForm,setAddForm]=useState(null);
   const[showShare,setShowShare]=useState(false);
   const[showActivity,setShowActivity]=useState(false);
+  const[team,setTeam]=useState([]);
 
-  useEffect(()=>{try{const d=localStorage.getItem("gw-ops-data");if(d)setProducts(JSON.parse(d));}catch(e){}},[]);
-  const persist=useCallback(d=>{setProducts(d);try{localStorage.setItem("gw-ops-data",JSON.stringify(d));}catch(e){}},[]);
+  // localStorage removed - using Supabase as source of truth
+  const persist=useCallback(d=>{setProducts(d);},[]);
   useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});},30000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
