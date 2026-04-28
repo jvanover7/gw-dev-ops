@@ -429,10 +429,11 @@ function Board({isAdmin}){
   const[showShare,setShowShare]=useState(false);
   const[showActivity,setShowActivity]=useState(false);
   const[team,setTeam]=useState([]);
+  useEffect(()=>{fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},[]);
 
   // localStorage removed - using Supabase as source of truth
   const persist=useCallback(d=>{setProducts(d);},[]);
-  useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});},30000);return()=>clearInterval(iv);},[]);
+  useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},30000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
