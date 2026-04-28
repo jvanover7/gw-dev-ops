@@ -430,19 +430,20 @@ function Board({isAdmin}){
   const[showActivity,setShowActivity]=useState(false);
   const[team,setTeam]=useState([]);
   const[assignDrop,setAssignDrop]=useState(null);
+  const skipRefresh=useRef(false);
   const[showTeamPanel,setShowTeamPanel]=useState(false);
   useEffect(()=>{fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},[]);
 
   // localStorage removed - using Supabase as source of truth
   const persist=useCallback(d=>{setProducts(d);},[]);
-  useEffect(()=>{const iv=setInterval(()=>{fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},30000);return()=>clearInterval(iv);},[]);
+  useEffect(()=>{const iv=setInterval(()=>{if(skipRefresh.current)return;fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},30000);return()=>clearInterval(iv);},[]);
   useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
   const show=m=>setToast(m);
 
-  const changeSt=(pid,fi,ns)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);};
-  const setDt=(pid,fi,v)=>{persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,t:v}:f)}));setCalendar(null);show("Date → "+v);};
+  const changeSt=(pid,fi,ns)=>{const pr=products.find(p=>p.id===pid);if(pr&&pr.features[fi])updateFeatureSB(pid,pr.features[fi].n,"s",ns);persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);skipRefresh.current=true;setTimeout(()=>{skipRefresh.current=false;},10000);};
+  const setDt=(pid,fi,v)=>{const pr2=products.find(p=>p.id===pid);if(pr2&&pr2.features[fi])updateFeatureSB(pid,pr2.features[fi].n,"t",v);persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,t:v}:f)}));setCalendar(null);show("Date → "+v);skipRefresh.current=true;setTimeout(()=>{skipRefresh.current=false;},10000);};
   const openDrop=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setDropdown({pid,fi,top:r.bottom+4,left:r.left});setCalendar(null);};
   const openCal=(e,pid,fi)=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setCalendar({pid,fi,rect:{top:r.top,bottom:r.bottom,left:r.left}});setDropdown(null);};
   const addProduct=prod=>{persist([...products,prod]);setOpenG(g=>({...g,[prod.id]:true}));setAddForm(null);show("Product added");};
@@ -559,7 +560,7 @@ function Board({isAdmin}){
 
       {assignDrop&&<><div onClick={()=>setAssignDrop(null)} style={{position:"fixed",inset:0,zIndex:9996}}/><div style={{position:"fixed",top:assignDrop.top,left:Math.min(assignDrop.left,window.innerWidth-200),zIndex:9997,background:"#fff",borderRadius:10,border:"1px solid #e0e3e9",boxShadow:"0 10px 40px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:180}}>
         <div style={{padding:"10px 14px 6px",fontSize:10,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.04em"}}>Assign to</div>
-        {team.filter(t=>t.role==="developer").map(tm=><div key={tm.id} onClick={()=>{assignFeature(assignDrop.pid,assignDrop.fn,tm.id);setProducts(ps=>ps.map(p=>p.id!==assignDrop.pid?p:{...p,features:p.features.map((ft,idx)=>idx===assignDrop.fi?{...ft,assigned_to:tm.id}:ft)}));show("Assigned to "+tm.name);setAssignDrop(null);}} style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background="#f5f6f8";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}><div style={{width:26,height:26,borderRadius:13,background:"#0073ea",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{tm.name.charAt(0)}</div><span style={{fontSize:13,color:"#323338",fontWeight:500}}>{tm.name}</span></div>)}
+        {team.filter(t=>t.role==="developer").map(tm=><div key={tm.id} onClick={()=>{assignFeature(assignDrop.pid,assignDrop.fn,tm.id);setProducts(ps=>ps.map(p=>p.id!==assignDrop.pid?p:{...p,features:p.features.map((ft,idx)=>idx===assignDrop.fi?{...ft,assigned_to:tm.id}:ft)}));show("Assigned to "+tm.name);skipRefresh.current=true;setTimeout(()=>{skipRefresh.current=false;},10000);setAssignDrop(null);}} style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background="#f5f6f8";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}><div style={{width:26,height:26,borderRadius:13,background:"#0073ea",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{tm.name.charAt(0)}</div><span style={{fontSize:13,color:"#323338",fontWeight:500}}>{tm.name}</span></div>)}
         <div onClick={()=>setAssignDrop(null)} style={{padding:"8px 14px",cursor:"pointer",borderTop:"1px solid #e0e3e9",fontSize:11,color:"#aaa",textAlign:"center"}}>Cancel</div>
       </div></>}
 
