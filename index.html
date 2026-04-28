@@ -429,6 +429,8 @@ function Board({isAdmin}){
   const[showShare,setShowShare]=useState(false);
   const[showActivity,setShowActivity]=useState(false);
   const[team,setTeam]=useState([]);
+  const[assignDrop,setAssignDrop]=useState(null);
+  const[showTeamPanel,setShowTeamPanel]=useState(false);
   useEffect(()=>{fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},[]);
 
   // localStorage removed - using Supabase as source of truth
@@ -483,7 +485,8 @@ function Board({isAdmin}){
           <button onClick={()=>setFilter("deadlines")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:filter==="deadlines"?C.navy+"12":"transparent",border:`1.5px solid ${filter==="deadlines"?C.navy:"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:filter==="deadlines"?C.navy:C.sub,fontFamily:"monospace"}}>{deadlineF}</span><span style={{fontSize:10,fontWeight:600,color:filter==="deadlines"?C.navy:C.sub}}>Deadlines</span></button>
           <button onClick={()=>setFilter("bugs")} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:filter==="bugs"?"#e2445c12":"transparent",border:`1.5px solid ${filter==="bugs"?"#e2445c":"#e0e3e9"}`,cursor:"pointer"}}><span style={{fontSize:14,fontWeight:800,color:filter==="bugs"?"#e2445c":"#676879",fontFamily:"monospace"}}>{bugsActive>0?bugsActive:bugsTotal}</span><span style={{fontSize:10,fontWeight:600,color:filter==="bugs"?"#e2445c":"#676879"}}>{bugsActive>0?"Bugs":"Bugs"}</span></button>
           <button onClick={()=>setShowActivity(true)} style={{...addBtnStyle,background:"#f0f1f5",color:C.dark,borderColor:C.border}}>🔔 Activity</button>
-          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>{const name=window.prompt("Enter team member name:");if(!name||!name.trim())return;const id=name.trim().toLowerCase().replace(/[^a-z0-9]/g,"-");const key="gwdev-"+id+"-2026";const link="https://gw-dev-ops.vercel.app?key="+key;fetch(SB_URL+"/rest/v1/dev_ops_team",{method:"POST",headers:{...SB_HEADERS,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({id:id,name:name.trim(),role:"developer",access_key:key})}).then(r=>{if(r.ok){fetchTeam().then(t=>setTeam(t));show("Added "+name.trim());prompt("Send this link to "+name.trim()+":",link);}else{alert("Error adding member - may already exist");}});}} style={{...addBtnStyle,background:"#a25ddc10",color:"#a25ddc",borderColor:"#a25ddc30"}}>+ Team</button>
+          {isAdmin&&<><div style={{width:1,height:20,background:C.border,margin:"0 4px"}}/><button onClick={()=>setShowTeamPanel(true)} style={{...addBtnStyle,background:"#a25ddc10",color:"#a25ddc",borderColor:"#a25ddc30"}}>Team</button>
+          <button onClick={()=>{const name=window.prompt("Enter team member name:");if(!name||!name.trim())return;const id=name.trim().toLowerCase().replace(/[^a-z0-9]/g,"-");const key="gwdev-"+id+"-2026";const link="https://gw-dev-ops.vercel.app?key="+key;fetch(SB_URL+"/rest/v1/dev_ops_team",{method:"POST",headers:{...SB_HEADERS,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({id:id,name:name.trim(),role:"developer",access_key:key})}).then(r=>{if(r.ok){fetchTeam().then(t=>setTeam(t));show("Added "+name.trim());prompt("Send this link to "+name.trim()+":",link);}else{alert("Error adding member - may already exist");}});}} style={{...addBtnStyle,background:"#a25ddc10",color:"#a25ddc",borderColor:"#a25ddc30"}}>+ Team</button>
           <button onClick={()=>setShowShare(true)} style={{...addBtnStyle,background:C.green+"10",color:C.green,borderColor:C.green+"30"}}>Share Access</button><button onClick={()=>setAddForm("feature")} style={addBtnStyle}>+ Feature</button><button onClick={()=>setAddForm("product")} style={{...addBtnStyle,background:C.navy+"10",color:C.navy,borderColor:C.navy+"30"}}>+ Product</button></>}
         </div>
       </header>
@@ -520,7 +523,7 @@ function Board({isAdmin}){
                       <div style={{minWidth:0,paddingRight:10}}><div style={{fontSize:13,fontWeight:600,color:isDone?C.sub:C.dark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</div><div style={{fontSize:11,color:"#b0b0b0",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{f.type==="bug"?"🐛 ":""}{f.d}</div>
                         <div style={{display:"flex",gap:4,marginTop:2,flexWrap:"wrap"}}>
                           {f.assigned_to&&team.length>0&&(()=>{const tm=team.find(t=>t.id===f.assigned_to);return tm?<span style={{fontSize:9,fontWeight:700,color:"#fff",background:f.s==="complete"?"#aaa":"#0073ea",padding:"1px 7px",borderRadius:8}}>{tm.name.split(" ")[0]}</span>:null;})()}
-                          {isAdmin&&!f.assigned_to&&f.s!=="complete"&&<select onChange={e=>{const mid=e.target.value;if(mid){assignFeature(prod.id,f.n,mid);setProducts(ps=>ps.map(p=>p.id!==prod.id?p:{...p,features:p.features.map((ft,idx)=>idx===ri?{...ft,assigned_to:mid}:ft)}));show("Assigned to "+mid);}e.target.value="";}} onClick={e=>e.stopPropagation()} style={{fontSize:9,color:"#bbb",background:"#f0f1f5",border:"1px dashed #ddd",borderRadius:6,padding:"2px 4px",cursor:"pointer"}} defaultValue=""><option value="">+ assign</option>{team.filter(t=>t.role==="developer").map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+                          {isAdmin&&!f.assigned_to&&f.s!=="complete"&&<button onClick={e=>{e.stopPropagation();const r=e.currentTarget.getBoundingClientRect();setAssignDrop({pid:prod.id,fi:ri,fn:f.n,top:r.bottom+4,left:r.left});}} style={{fontSize:10,fontWeight:600,color:"#9d9faa",background:"#f5f6f8",border:"1.5px dashed #d8dae0",borderRadius:10,padding:"3px 10px",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:3,transition:"all 0.15s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor="#0073ea";e.currentTarget.style.color="#0073ea";e.currentTarget.style.background="#0073ea08";}} onMouseLeave={e=>{e.currentTarget.style.borderColor="#d8dae0";e.currentTarget.style.color="#9d9faa";e.currentTarget.style.background="#f5f6f8";}}>+ Assign</button>}
                         </div>
                       </div>
                       <div>{isAdmin?<button onClick={e=>openDrop(e,prod.id,ri)} style={{display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,fontFamily:ff,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,border:"none",cursor:"pointer",minWidth:86,boxShadow:f.s==="blocked"?`0 0 0 2px ${C.red}25`:"none",whiteSpace:"nowrap"}} onMouseEnter={e=>{e.currentTarget.style.filter="brightness(1.1)";}} onMouseLeave={e=>{e.currentTarget.style.filter="none";}}>{st2.label} <span style={{marginLeft:4,fontSize:8,opacity:0.6}}>▾</span></button>:<span style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"5px 10px",borderRadius:12,background:st2.bg,color:st2.text,minWidth:86,textAlign:"center"}}>{st2.label}</span>}</div>
@@ -553,6 +556,38 @@ function Board({isAdmin}){
       {showActivity&&<><div onClick={()=>setShowActivity(false)} style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.2)"}}/><ActivityPanel onClose={()=>setShowActivity(false)}/></>}
       {isAdmin&&showShare&&<ShareModal onClose={()=>setShowShare(false)}/>}
       {isAdmin&&addForm&&<AddForm type={addForm} products={products} onSubmit={addForm==="product"?addProduct:addFeature} onCancel={()=>setAddForm(null)}/>}
+
+      {assignDrop&&<><div onClick={()=>setAssignDrop(null)} style={{position:"fixed",inset:0,zIndex:9996}}/><div style={{position:"fixed",top:assignDrop.top,left:Math.min(assignDrop.left,window.innerWidth-200),zIndex:9997,background:"#fff",borderRadius:10,border:"1px solid #e0e3e9",boxShadow:"0 10px 40px rgba(0,0,0,0.15)",overflow:"hidden",minWidth:180}}>
+        <div style={{padding:"10px 14px 6px",fontSize:10,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.04em"}}>Assign to</div>
+        {team.filter(t=>t.role==="developer").map(tm=><div key={tm.id} onClick={()=>{assignFeature(assignDrop.pid,assignDrop.fn,tm.id);setProducts(ps=>ps.map(p=>p.id!==assignDrop.pid?p:{...p,features:p.features.map((ft,idx)=>idx===assignDrop.fi?{...ft,assigned_to:tm.id}:ft)}));show("Assigned to "+tm.name);setAssignDrop(null);}} style={{padding:"10px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,transition:"background 0.1s"}} onMouseEnter={e=>{e.currentTarget.style.background="#f5f6f8";}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}><div style={{width:26,height:26,borderRadius:13,background:"#0073ea",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#fff",flexShrink:0}}>{tm.name.charAt(0)}</div><span style={{fontSize:13,color:"#323338",fontWeight:500}}>{tm.name}</span></div>)}
+        <div onClick={()=>setAssignDrop(null)} style={{padding:"8px 14px",cursor:"pointer",borderTop:"1px solid #e0e3e9",fontSize:11,color:"#aaa",textAlign:"center"}}>Cancel</div>
+      </div></>}
+
+      {showTeamPanel&&<><div onClick={()=>setShowTeamPanel(false)} style={{position:"fixed",inset:0,zIndex:9997,background:"rgba(0,0,0,0.2)"}}/><div style={{position:"fixed",top:0,right:0,bottom:0,width:420,maxWidth:"95vw",background:"#fff",boxShadow:"-8px 0 40px rgba(0,0,0,0.12)",zIndex:9998,display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        <div style={{padding:"20px 22px",borderBottom:"1px solid #e0e3e9",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div><h3 style={{fontSize:16,fontWeight:800,color:"#323338",margin:0}}>Team Members</h3><p style={{fontSize:11,color:"#676879",marginTop:2}}>{team.length} members</p></div>
+          <button onClick={()=>setShowTeamPanel(false)} style={{background:"#f0f1f5",border:"none",width:28,height:28,borderRadius:7,fontSize:15,color:"#676879",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>x</button>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"12px 0"}}>
+          {team.map(tm=>{const assigned=products.flatMap(p=>p.features.filter(f=>f.assigned_to===tm.id).map(f=>({...f,prodName:p.name,prodId:p.id})));const active=assigned.filter(f=>f.s!=="complete");const done=assigned.filter(f=>f.s==="complete");return <div key={tm.id} style={{padding:"14px 22px",borderBottom:"1px solid #f2f3f6"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <div style={{width:32,height:32,borderRadius:16,background:tm.role==="admin"?"#00c875":tm.role==="viewer"?"#a25ddc":"#0073ea",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{tm.name.charAt(0)}</div>
+              <div style={{flex:1}}><div style={{fontSize:14,fontWeight:700,color:"#323338"}}>{tm.name}</div><div style={{fontSize:11,color:"#aaa"}}>{tm.role} {tm.email?(" · "+tm.email):""}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:18,fontWeight:800,color:active.length>0?"#0073ea":"#00c875"}}>{active.length}</div><div style={{fontSize:9,color:"#aaa",textTransform:"uppercase"}}>active</div></div>
+            </div>
+            {active.length>0&&<div style={{marginLeft:42}}>
+              {active.map((f,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",fontSize:12}}>
+                <div style={{width:8,height:8,borderRadius:4,background:f.s==="blocked"?"#e2445c":f.s==="in-dev"?"#fdab3d":f.s==="testing"?"#0086c0":"#a25ddc",flexShrink:0}}/>
+                <span style={{color:"#323338",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.n}</span>
+                <span style={{fontSize:10,color:"#aaa",flexShrink:0}}>{f.prodName.split(" ")[0]}</span>
+                {f.t&&f.t!=="TBD"&&<span style={{fontSize:10,color:"#e2445c",fontWeight:600,flexShrink:0}}>{f.t}</span>}
+              </div>)}
+            </div>}
+            {active.length===0&&assigned.length>0&&<div style={{marginLeft:42,fontSize:11,color:"#00c875",fontWeight:600}}>All {done.length} tasks complete</div>}
+            {assigned.length===0&&<div style={{marginLeft:42,fontSize:11,color:"#bbb"}}>No assignments yet</div>}
+          </div>;})}
+        </div>
+      </div></>}
 
       {toast&&<div style={{position:"fixed",bottom:chatOpen?340:70,left:"50%",transform:"translateX(-50%)",zIndex:9998,background:C.dark,color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 6px 20px rgba(0,0,0,0.2)",animation:"toastIn 0.2s ease"}}>✓ {toast}</div>}
 
