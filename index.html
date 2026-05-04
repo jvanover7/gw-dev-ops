@@ -329,10 +329,18 @@ const INIT=[
 function AccessGate() {
   const [pin, setPin] = useState("");
   const [err, setErr] = useState(false);
+  const [checking, setChecking] = useState(false);
   const tryAccess = () => {
     if (pin === VIEWER_KEY || pin === ADMIN_KEY) {
-      window.location.search = "?key=" + pin;
-    } else { setErr(true); setTimeout(() => setErr(false), 2000); }
+      window.location.search = "?key=" + pin; return;
+    }
+    setChecking(true);
+    fetch(SB_URL+"/rest/v1/dev_ops_team?access_key=eq."+encodeURIComponent(pin)+"&select=id,name,role",{headers:SB_HEADERS})
+      .then(r=>r.json()).then(members=>{
+        if(members.length>0){window.location.search="?key="+pin;}
+        else{setErr(true);setTimeout(()=>setErr(false),2000);}
+        setChecking(false);
+      }).catch(()=>{setErr(true);setTimeout(()=>setErr(false),2000);setChecking(false);});
   };
   return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f6f7fb",fontFamily:ff}}>
@@ -411,7 +419,7 @@ function AddForm({type,onSubmit,onCancel,products}){
 }
 
 /* ════ MAIN APP ════ */
-function Board({isAdmin}){
+function Board({isAdmin, currentMember}){
   const[products,setProducts]=useState(INIT);
   const[loading,setLoading]=useState(true);
   useEffect(()=>{fetchBoard().then(d=>{if(d&&d.length>0){setProducts(d);setOpenG(prev=>{const m={...prev};d.forEach(p=>{if(!(p.id in m))m[p.id]=true;});return m;});}setLoading(false);}).catch(()=>setLoading(false));},[]);
@@ -493,6 +501,16 @@ function Board({isAdmin}){
       </header>
 
       <main style={{padding:"14px 24px 16px"}}>
+        {currentMember&&(()=>{const myTasks=products.flatMap(p=>p.features.filter(f=>f.assigned_to===currentMember.id&&f.s!=="complete").map(f=>({...f,prodName:p.name})));return myTasks.length>0?<div style={{marginBottom:16,background:"#0073ea08",border:"1.5px solid #0073ea20",borderRadius:10,padding:"14px 18px"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#0073ea",marginBottom:8}}>My Tasks ({myTasks.length})</div>
+          {myTasks.map((f,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:i<myTasks.length-1?"1px solid #0073ea10":"none"}}>
+            <div style={{width:8,height:8,borderRadius:4,background:f.s==="blocked"?"#e2445c":f.s==="in-dev"?"#fdab3d":f.s==="testing"?"#0086c0":"#a25ddc",flexShrink:0}}/>
+            <span style={{fontSize:13,fontWeight:600,color:"#323338",flex:1}}>{f.n}</span>
+            <span style={{fontSize:10,color:"#aaa"}}>{f.prodName}</span>
+            {f.t&&f.t!=="TBD"&&<span style={{fontSize:10,color:"#e2445c",fontWeight:600}}>{f.t}</span>}
+            <span style={{fontSize:10,fontWeight:600,padding:"2px 8px",borderRadius:8,background:f.s==="in-dev"?"#fdab3d":f.s==="testing"?"#0086c0":"#a25ddc",color:f.s==="in-dev"?"#333":"#fff"}}>{STATUS[f.s]?STATUS[f.s].label:f.s}</span>
+          </div>)}
+        </div>:null;})()}
         {filtered.map((prod,gIdx)=>{
           const isOpen=openG[prod.id];const gc=GC[products.indexOf(prod)%GC.length];const ps=PS[prod.st];
           const total=prod.features.length;const done=prod.features.filter(f=>f.s==="complete").length;const pct=total>0?Math.round((done/total)*100):0;
@@ -636,9 +654,28 @@ const addBtnStyle={padding:"5px 12px",borderRadius:8,border:`1.5px solid ${C.bor
 
 /* ════ ROOT ════ */
 function Root(){
-  const access=getAccessLevel();
+  const [access, setAccess] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentMember, setCurrentMember] = useState(null);
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    const key=params.get("key");
+    if(!key){setLoading(false);return;}
+    if(key===ADMIN_KEY){setAccess("admin");setLoading(false);return;}
+    if(key===VIEWER_KEY){setAccess("viewer");setLoading(false);return;}
+    fetch(SB_URL+"/rest/v1/dev_ops_team?access_key=eq."+encodeURIComponent(key)+"&select=*",{headers:SB_HEADERS})
+      .then(r=>r.json()).then(members=>{
+        if(members.length>0){
+          const m=members[0];
+          setCurrentMember(m);
+          setAccess(m.role==="admin"?"admin":m.role==="developer"?"developer":"viewer");
+        }
+        setLoading(false);
+      }).catch(()=>setLoading(false));
+  },[]);
+  if(loading)return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f6f7fb",fontFamily:"inherit"}}><div style={{color:"#aaa",fontSize:14}}>Loading...</div></div>;
   if(!access)return <AccessGate/>;
-  return <Board isAdmin={access==="admin"}/>;
+  return <Board isAdmin={access==="admin"||access==="developer"} currentMember={currentMember}/>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
