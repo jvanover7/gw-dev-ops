@@ -654,28 +654,27 @@ const addBtnStyle={padding:"5px 12px",borderRadius:8,border:`1.5px solid ${C.bor
 
 /* ════ ROOT ════ */
 function Root(){
-  const [access, setAccess] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [currentMember, setCurrentMember] = useState(null);
+  const params=new URLSearchParams(window.location.search);
+  const key=params.get("key");
+  if(!key)return <AccessGate/>;
+  if(key===ADMIN_KEY)return <Board isAdmin={true} currentMember={null}/>;
+  if(key===VIEWER_KEY)return <Board isAdmin={false} currentMember={null}/>;
+  return <TeamMemberLoader accessKey={key}/>;
+}
+
+function TeamMemberLoader({accessKey}){
+  const [member,setMember]=useState(null);
+  const [done,setDone]=useState(false);
   useEffect(()=>{
-    const params=new URLSearchParams(window.location.search);
-    const key=params.get("key");
-    if(!key){setLoading(false);return;}
-    if(key===ADMIN_KEY){setAccess("admin");setLoading(false);return;}
-    if(key===VIEWER_KEY){setAccess("viewer");setLoading(false);return;}
-    fetch(SB_URL+"/rest/v1/dev_ops_team?access_key=eq."+encodeURIComponent(key)+"&select=*",{headers:SB_HEADERS})
-      .then(r=>r.json()).then(members=>{
-        if(members.length>0){
-          const m=members[0];
-          setCurrentMember(m);
-          setAccess(m.role==="admin"?"admin":m.role==="developer"?"developer":"viewer");
-        }
-        setLoading(false);
-      }).catch(()=>setLoading(false));
+    fetch(SB_URL+"/rest/v1/dev_ops_team?access_key=eq."+encodeURIComponent(accessKey)+"&select=*",{headers:SB_HEADERS})
+      .then(function(r){return r.json();}).then(function(members){
+        if(members.length>0)setMember(members[0]);
+        setDone(true);
+      }).catch(function(){setDone(true);});
   },[]);
-  if(loading)return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f6f7fb",fontFamily:"inherit"}}><div style={{color:"#aaa",fontSize:14}}>Loading...</div></div>;
-  if(!access)return <AccessGate/>;
-  return <Board isAdmin={access==="admin"||access==="developer"} currentMember={currentMember}/>;
+  if(!done)return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f6f7fb"}}><div style={{color:"#aaa",fontSize:14}}>Loading...</div></div>;
+  if(!member)return <AccessGate/>;
+  return <Board isAdmin={member.role==="admin"||member.role==="developer"} currentMember={member}/>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
