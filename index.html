@@ -93,6 +93,9 @@ async function fetchBoard() {
       since: p.since || null,
       value: p.impact || "",
       who: p.users || "",
+      budget_amount: p.budget_amount || null,
+      budget_status: p.budget_status || "none",
+      budget_notes: p.budget_notes || "",
       features: features.filter(f => f.product_id === p.id).map(f => ({
         n: f.name,
         s: f.status,
@@ -525,8 +528,19 @@ function Board({isAdmin, currentMember}){
                   <span style={{fontSize:14,fontWeight:800,color:gc}}>{prod.name}</span>
                   <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:ps.bg,color:prod.st==="building"?"#333":"#fff"}}>{ps.label}</span>
                   {prod.since&&<span style={{fontSize:10,color:"#aaa"}}>{prod.since}</span>}
+                  {prod.budget_status==="pending"&&<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#fdab3d",color:"#333",cursor:"pointer"}} onClick={function(e){e.stopPropagation();if(!isAdmin){if(confirm("Approve budget of $"+(prod.budget_amount||0).toLocaleString()+" for "+prod.name+"?")){fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+prod.id,{method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_status:"approved",budget_approved_by:"viewer",budget_approved_at:new Date().toISOString()})}).then(function(){show("Budget approved!");});}}else{alert("Budget: $"+(prod.budget_amount||0).toLocaleString()+"\nStatus: Pending\nNotes: "+(prod.budget_notes||"None"));}}}>Pending Budget</span>}
+                  {prod.budget_status==="approved"&&<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#00c87520",color:"#00c875"}}>Budget Approved</span>}
                   <span style={{flex:1}}/>
-                  <Bat pct={pct} color={gc}/><span style={{fontSize:10,fontWeight:700,color:pct===100?C.green:C.sub,fontFamily:fm}}>{pct}%</span><span style={{fontSize:10,color:"#bbb"}}>{done}/{total}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                    <div style={{position:"relative",width:120,height:10,borderRadius:5,background:"#ecedf0",overflow:"hidden"}}>
+                      <div style={{width:pct+"%",height:"100%",borderRadius:5,background:pct===100?"#00c875":pct>=75?"#0086c0":pct>=50?"#0073ea":pct>=25?"#fdab3d":"#e2445c",transition:"width 0.4s"}}/>
+                      <div style={{position:"absolute",top:0,left:"25%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
+                      <div style={{position:"absolute",top:0,left:"50%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
+                      <div style={{position:"absolute",top:0,left:"75%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
+                    </div>
+                    <span style={{fontSize:12,fontWeight:800,color:pct===100?"#00c875":pct>=75?"#0086c0":pct>=50?"#0073ea":"#676879",fontFamily:fm,minWidth:36}}>{pct}%</span>
+                    <span style={{fontSize:10,color:"#bbb"}}>{done}/{total}</span>
+                  </div>
                 </div>
               </div>
               {isOpen&&(
@@ -534,6 +548,7 @@ function Board({isAdmin, currentMember}){
                   <div className="gw-impact" style={{padding:"8px 14px 8px 19px",background:gc+"06",borderBottom:`1px solid ${C.border}`}}>
                     <span style={{fontSize:12,color:C.dark,lineHeight:1.5}}><b style={{color:gc}}>Impact:</b> {prod.value}</span>
                     {prod.who&&<span style={{fontSize:10,color:"#aaa",fontFamily:fm,marginLeft:10}}>{prod.who}</span>}
+                  {isAdmin&&(!prod.budget_status||prod.budget_status==="none")&&<button onClick={function(e){e.stopPropagation();var amt=prompt("Enter budget amount for "+prod.name+":");if(amt){var notes=prompt("Budget notes:");fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+prod.id,{method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_amount:parseFloat(amt),budget_status:"pending",budget_notes:notes||""})}).then(function(){show("Budget submitted for approval");});}}} style={{fontSize:9,color:"#0073ea",background:"#0073ea10",border:"1px dashed #0073ea30",borderRadius:6,padding:"2px 8px",cursor:"pointer",marginLeft:8}}>Set Budget</button>}
                   </div>
                   <div className="gw-colhead" style={{padding:"6px 14px 6px 19px",borderBottom:`1px solid ${C.border}`,background:"#fafbfc"}}>
                     <span style={colH}>Feature</span><span style={colH}>Status</span><span style={colH}>Target</span><span style={{...colH,textAlign:"right"}}>Progress</span>
