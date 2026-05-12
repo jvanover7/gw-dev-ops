@@ -363,7 +363,7 @@ function CalPicker({anchor,val,onPick,onClear,onClose}){
   const[mo,setMo]=useState(p?p.getMonth():today.getMonth());
   const[yr,setYr]=useState(p?p.getFullYear():today.getFullYear());
   const ref=useRef(null);
-  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};const t=setTimeout(()=>document.addEventListener("mousedown",h),20);return()=>{clearTimeout(t);document.removeEventListener("mousedown",h);};},[onClose]);
+  useEffect(()=>{const h=e=>{if(ref.current&&!ref.current.contains(e.target))onClose();};const t=setTimeout(()=>document.addEventListener("mousedown",h),20);return()=>{clearTimeoutout(t);document.removeEventListener("mousedown",h);};},[onClose]);
   const prev=()=>{if(mo===0){setMo(11);setYr(y=>y-1);}else setMo(m=>m-1);};
   const next=()=>{if(mo===11){setMo(0);setYr(y=>y+1);}else setMo(m=>m+1);};
   const fd=new Date(yr,mo,1).getDay();const dim=new Date(yr,mo+1,0).getDate();
@@ -445,9 +445,9 @@ function Board({isAdmin, currentMember}){
   // localStorage removed - using Supabase as source of truth
   const persist=useCallback(d=>{setProducts(d);},[]);
   useEffect(()=>{const iv=setInterval(()=>{if(skipRefresh.current)return;fetchBoard().then(d=>{if(d&&d.length>0)setProducts(d);});fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},30000);return()=>clearInterval(iv);},[]);
-  useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeout(t);document.removeEventListener("click",h);};},[dropdown]);
+  useEffect(()=>{if(!dropdown)return;const h=()=>setDropdown(null);const t=setTimeout(()=>document.addEventListener("click",h),10);return()=>{clearTimeoutout(t);document.removeEventListener("click",h);};},[dropdown]);
   useEffect(()=>{if(chatEnd.current)chatEnd.current.scrollIntoView({behavior:"smooth"});},[chatHist,chatBusy]);
-  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeout(t);},[toast]);
+  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(null),2500);return()=>clearTimeoutout(t);},[toast]);
   const show=m=>setToast(m);
 
   const changeSt=(pid,fi,ns)=>{const pr=products.find(p=>p.id===pid);if(pr&&pr.features[fi])updateFeatureSB(pid,pr.features[fi].n,"s",ns);persist(products.map(p=>p.id!==pid?p:{...p,features:p.features.map((f,i)=>i===fi?{...f,s:ns}:f)}));setDropdown(null);show("Status → "+STATUS[ns].label);skipRefresh.current=true;setTimeout(()=>{skipRefresh.current=false;},10000);};
