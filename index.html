@@ -101,7 +101,10 @@ async function fetchBoard() {
         s: f.status,
         t: f.target_date || "TBD",
         d: f.description || "",
-        type: f.type || "feature"
+        type: f.type || "feature",
+        assigned_to: f.assigned_to || null,
+        fBudget: f.budget_amount || null,
+        fBudgetStatus: f.budget_status || "none"
       }))
     }));
   } catch(e) {
@@ -130,6 +133,12 @@ async function requestBudget(productId, amount, note) {
   } catch(e) { console.error("Budget error:", e); }
 }
 
+async function updateFeatureBudget(pid, fn, amt) {
+  try { await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(pid)+"&name=eq."+encodeURIComponent(fn), {method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_amount:amt,budget_status:"pending"})}); } catch(e) {}
+}
+async function approveFeatureBudget(pid, fn) {
+  try { await fetch(SB_URL+"/rest/v1/dev_ops_features?product_id=eq."+encodeURIComponent(pid)+"&name=eq."+encodeURIComponent(fn), {method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_status:"approved"})}); } catch(e) {}
+}
 async function approveBudget(productId) {
   try {
     await fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+encodeURIComponent(productId), {
@@ -461,6 +470,7 @@ function Board({isAdmin, currentMember}){
   const[showActivity,setShowActivity]=useState(false);
   const[team,setTeam]=useState([]);
   const[assignDrop,setAssignDrop]=useState(null);
+  const[selectedProd,setSelectedProd]=useState(null);
   const skipRefresh=useRef(false);
   const[showTeamPanel,setShowTeamPanel]=useState(false);
   useEffect(()=>{fetchTeam().then(t=>{if(t&&t.length>0)setTeam(t);});},[]);
@@ -545,7 +555,7 @@ function Board({isAdmin, currentMember}){
                 <div style={{width:5,alignSelf:"stretch",background:gc,flexShrink:0,borderRadius:isOpen?"8px 0 0 0":"8px 0 0 8px"}}/>
                 <div style={{flex:1,padding:"10px 14px",display:"flex",alignItems:"center",gap:8,minWidth:0,flexWrap:"wrap"}}>
                   <span style={{fontSize:9,color:C.sub,transition:"transform 0.15s",transform:isOpen?"rotate(90deg)":"",width:10,display:"inline-block"}}>▶</span>
-                  <span style={{fontSize:14,fontWeight:800,color:gc}}>{prod.name}</span>
+                  <span onClick={function(e){e.stopPropagation();setSelectedProd(prod);}} style={{fontSize:14,fontWeight:800,color:gc,cursor:"pointer"}} onMouseEnter={function(e){e.currentTarget.style.textDecoration="underline";}} onMouseLeave={function(e){e.currentTarget.style.textDecoration="none";}}>{prod.name}</span>
                   <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:ps.bg,color:prod.st==="building"?"#333":"#fff"}}>{ps.label}</span>
                   {prod.since&&<span style={{fontSize:10,color:"#aaa"}}>{prod.since}</span>}
                   {isAdmin&&(prod.budgetStatus==="none"||!prod.budgetStatus)&&<span onClick={function(e){e.stopPropagation();var amt=window.prompt("Budget amount for "+prod.name+" ($):");if(amt&&!isNaN(Number(amt))){requestBudget(prod.id,Number(amt),"");setProducts(function(ps){return ps.map(function(p){return p.id!==prod.id?p:Object.assign({},p,{budget:Number(amt),budgetStatus:"pending"})});});show("Budget submitted for approval");}}} style={{fontSize:9,fontWeight:600,padding:"2px 8px",borderRadius:10,background:"#f0f1f5",color:"#9d9faa",border:"1px dashed #d8dae0",cursor:"pointer"}}>+ Set Budget</span>}
@@ -635,6 +645,27 @@ function Board({isAdmin, currentMember}){
         </div>
       </div></>}
 
+      {selectedProd&&<div style={{position:"fixed",inset:0,zIndex:9990,background:"#f6f7fb",overflowY:"auto"}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"24px"}}>
+          <button onClick={function(){setSelectedProd(null);}} style={{fontSize:13,fontWeight:600,color:"#676879",background:"#fff",border:"1px solid #e0e3e9",borderRadius:8,padding:"8px 16px",cursor:"pointer",marginBottom:20}}>Back to Board</button>
+          <div style={{background:"#fff",borderRadius:12,border:"1px solid #e0e3e9",padding:"24px",marginBottom:16}}>
+            <h2 style={{fontSize:22,fontWeight:900,color:"#323338",margin:"0 0 8px"}}>{selectedProd.name}</h2>
+            <p style={{fontSize:13,color:"#676879",lineHeight:1.5,margin:"0 0 16px"}}>{selectedProd.value}</p>
+            <div style={{display:"flex",gap:20,alignItems:"center",flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:200}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:11,fontWeight:600,color:"#676879"}}>Progress</span><span style={{fontSize:14,fontWeight:800,fontFamily:"monospace",color:"#0073ea"}}>{Math.round(selectedProd.features.filter(function(f){return f.s==="complete"}).length/Math.max(selectedProd.features.length,1)*100)+"%"}</span></div>
+                <div style={{width:"100%",height:14,borderRadius:7,background:"#ecedf0",overflow:"hidden"}}><div style={{width:Math.round(selectedProd.features.filter(function(f){return f.s==="complete"}).length/Math.max(selectedProd.features.length,1)*100)+"%",height:"100%",borderRadius:7,background:"#0073ea"}}/></div>
+              </div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:"#323338"}}>{selectedProd.features.filter(function(f){return f.s==="complete"}).length+"/"+selectedProd.features.length}</div><div style={{fontSize:9,color:"#aaa"}}>COMPLETE</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:"#0073ea"}}>{"$"+selectedProd.features.reduce(function(a,f){return a+(f.fBudget||0)},0).toLocaleString()}</div><div style={{fontSize:9,color:"#aaa"}}>TOTAL BUDGET</div></div>
+            </div>
+          </div>
+          <div style={{background:"#fff",borderRadius:12,border:"1px solid #e0e3e9",overflow:"hidden"}}>
+            <div style={{padding:"12px 20px",borderBottom:"1px solid #e0e3e9",background:"#fafbfc",display:"grid",gridTemplateColumns:"minmax(0,1fr) 90px 90px 90px 80px",gap:8,fontSize:10,fontWeight:700,color:"#aaa",textTransform:"uppercase"}}><span>Feature</span><span>Status</span><span>Target</span><span>Budget</span><span>Approval</span></div>
+            {selectedProd.features.map(function(f,i){return <div key={i} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 90px 90px 90px 80px",gap:8,padding:"12px 20px",borderBottom:i<selectedProd.features.length-1?"1px solid #f2f3f6":"none",alignItems:"center"}}><div><div style={{fontSize:13,fontWeight:600,color:f.s==="complete"?"#aaa":"#323338"}}>{f.n}</div><div style={{fontSize:11,color:"#bbb",marginTop:2}}>{f.d}</div></div><div><span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:8,background:STATUS[f.s]?STATUS[f.s].bg:"#ccc",color:STATUS[f.s]?STATUS[f.s].text:"#fff"}}>{STATUS[f.s]?STATUS[f.s].label:f.s}</span></div><div style={{fontSize:11,fontFamily:"monospace",color:f.t==="TBD"?"#ccc":"#676879"}}>{f.t}</div><div>{f.fBudget?<span style={{fontSize:11,fontWeight:600}}>{"$"+Number(f.fBudget).toLocaleString()}</span>:isAdmin?<span onClick={function(){var a=window.prompt("Cost for "+f.n+" ($):");if(a&&!isNaN(Number(a))){updateFeatureBudget(selectedProd.id,f.n,Number(a));var u=Object.assign({},selectedProd,{features:selectedProd.features.map(function(ft,idx){return idx===i?Object.assign({},ft,{fBudget:Number(a),fBudgetStatus:"pending"}):ft})});setSelectedProd(u);show("Budget set");}}} style={{fontSize:10,color:"#bbb",border:"1px dashed #ddd",borderRadius:6,padding:"2px 6px",cursor:"pointer"}}>+ cost</span>:<span style={{color:"#ddd"}}>--</span>}</div><div>{f.fBudgetStatus==="pending"?<span onClick={function(){approveFeatureBudget(selectedProd.id,f.n);var u=Object.assign({},selectedProd,{features:selectedProd.features.map(function(ft,idx){return idx===i?Object.assign({},ft,{fBudgetStatus:"approved"}):ft})});setSelectedProd(u);show("Approved!");}} style={{fontSize:9,fontWeight:700,color:"#fdab3d",cursor:"pointer"}}>Pending</span>:f.fBudgetStatus==="approved"?<span style={{fontSize:9,fontWeight:700,color:"#00c875"}}>Approved</span>:<span style={{color:"#ddd"}}>--</span>}</div></div>})}
+          </div>
+        </div>
+      </div>}
       {toast&&<div style={{position:"fixed",bottom:chatOpen?340:70,left:"50%",transform:"translateX(-50%)",zIndex:9998,background:C.dark,color:"#fff",padding:"10px 20px",borderRadius:10,fontSize:13,fontWeight:600,boxShadow:"0 6px 20px rgba(0,0,0,0.2)",animation:"toastIn 0.2s ease"}}>✓ {toast}</div>}
 
       {/* CHAT — admin only */}
