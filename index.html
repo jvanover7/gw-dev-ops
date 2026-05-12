@@ -93,9 +93,9 @@ async function fetchBoard() {
       since: p.since || null,
       value: p.impact || "",
       who: p.users || "",
-      budget_amount: p.budget_amount || null,
-      budget_status: p.budget_status || "none",
-      budget_notes: p.budget_notes || "",
+      budget: p.budget_amount || null,
+      budgetStatus: p.budget_status || "none",
+      budgetNote: p.budget_note || "",
       features: features.filter(f => f.product_id === p.id).map(f => ({
         n: f.name,
         s: f.status,
@@ -118,6 +118,26 @@ async function fetchTeam() {
     var res = await fetch(SB_URL+"/rest/v1/dev_ops_team?select=*&active=eq.true", {headers:SB_HEADERS});
     return await res.json();
   } catch(e) { return []; }
+}
+
+async function requestBudget(productId, amount, note) {
+  try {
+    await fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+encodeURIComponent(productId), {
+      method: "PATCH",
+      headers: Object.assign({}, SB_HEADERS, {"Content-Type":"application/json", "Prefer":"return=minimal"}),
+      body: JSON.stringify({budget_amount: amount, budget_status: "pending", budget_note: note || ""})
+    });
+  } catch(e) { console.error("Budget error:", e); }
+}
+
+async function approveBudget(productId) {
+  try {
+    await fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+encodeURIComponent(productId), {
+      method: "PATCH",
+      headers: Object.assign({}, SB_HEADERS, {"Content-Type":"application/json", "Prefer":"return=minimal"}),
+      body: JSON.stringify({budget_status: "approved"})
+    });
+  } catch(e) { console.error("Approve error:", e); }
 }
 
 async function assignFeature(productId, featureName, memberId) {
@@ -528,19 +548,11 @@ function Board({isAdmin, currentMember}){
                   <span style={{fontSize:14,fontWeight:800,color:gc}}>{prod.name}</span>
                   <span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:ps.bg,color:prod.st==="building"?"#333":"#fff"}}>{ps.label}</span>
                   {prod.since&&<span style={{fontSize:10,color:"#aaa"}}>{prod.since}</span>}
-                  {prod.budget_status==="pending"&&<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#fdab3d",color:"#333",cursor:"pointer"}} onClick={function(e){e.stopPropagation();if(!isAdmin){if(confirm("Approve budget of $"+(prod.budget_amount||0).toLocaleString()+" for "+prod.name+"?")){fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+prod.id,{method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_status:"approved",budget_approved_by:"viewer",budget_approved_at:new Date().toISOString()})}).then(function(){show("Budget approved!");});}}else{alert("Budget: $"+(prod.budget_amount||0).toLocaleString()+"\nStatus: Pending\nNotes: "+(prod.budget_notes||"None"));}}}>Pending Budget</span>}
-                  {prod.budget_status==="approved"&&<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#00c87520",color:"#00c875"}}>Budget Approved</span>}
+                  {isAdmin&&(prod.budgetStatus==="none"||!prod.budgetStatus)&&<span onClick={function(e){e.stopPropagation();var amt=window.prompt("Budget amount for "+prod.name+" ($):");if(amt&&!isNaN(Number(amt))){requestBudget(prod.id,Number(amt),"");setProducts(function(ps){return ps.map(function(p){return p.id!==prod.id?p:Object.assign({},p,{budget:Number(amt),budgetStatus:"pending"})});});show("Budget submitted for approval");}}} style={{fontSize:9,fontWeight:600,padding:"2px 8px",borderRadius:10,background:"#f0f1f5",color:"#9d9faa",border:"1px dashed #d8dae0",cursor:"pointer"}}>+ Set Budget</span>}
+                  {prod.budgetStatus==="pending"&&<span onClick={function(e){e.stopPropagation();if(window.confirm("Approve budget of $"+(prod.budget||0).toLocaleString()+" for "+prod.name+"?")){approveBudget(prod.id);setProducts(function(ps){return ps.map(function(p){return p.id!==prod.id?p:Object.assign({},p,{budgetStatus:"approved"})});});show("Budget approved!");}}} style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#fdab3d20",color:"#fdab3d",border:"1px solid #fdab3d40",cursor:"pointer"}}>Budget Pending{prod.budget?" $"+String(Number(prod.budget).toLocaleString()):""} - Click to Approve</span>}
+                  {prod.budgetStatus==="approved"&&prod.budget&&<span style={{fontSize:9,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#00c87520",color:"#00c875"}}>Approved ${" $"+String(Number(prod.budget).toLocaleString())}</span>}
                   <span style={{flex:1}}/>
-                  <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
-                    <div style={{position:"relative",width:120,height:10,borderRadius:5,background:"#ecedf0",overflow:"hidden"}}>
-                      <div style={{width:pct+"%",height:"100%",borderRadius:5,background:pct===100?"#00c875":pct>=75?"#0086c0":pct>=50?"#0073ea":pct>=25?"#fdab3d":"#e2445c",transition:"width 0.4s"}}/>
-                      <div style={{position:"absolute",top:0,left:"25%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
-                      <div style={{position:"absolute",top:0,left:"50%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
-                      <div style={{position:"absolute",top:0,left:"75%",width:1,height:"100%",background:"rgba(255,255,255,0.4)"}}/>
-                    </div>
-                    <span style={{fontSize:12,fontWeight:800,color:pct===100?"#00c875":pct>=75?"#0086c0":pct>=50?"#0073ea":"#676879",fontFamily:fm,minWidth:36}}>{pct}%</span>
-                    <span style={{fontSize:10,color:"#bbb"}}>{done}/{total}</span>
-                  </div>
+                  <Bat pct={pct} color={gc}/><span style={{fontSize:10,fontWeight:700,color:pct===100?C.green:C.sub,fontFamily:fm}}>{pct}%</span><span style={{fontSize:10,color:"#bbb"}}>{done}/{total}</span>
                 </div>
               </div>
               {isOpen&&(
@@ -548,7 +560,6 @@ function Board({isAdmin, currentMember}){
                   <div className="gw-impact" style={{padding:"8px 14px 8px 19px",background:gc+"06",borderBottom:`1px solid ${C.border}`}}>
                     <span style={{fontSize:12,color:C.dark,lineHeight:1.5}}><b style={{color:gc}}>Impact:</b> {prod.value}</span>
                     {prod.who&&<span style={{fontSize:10,color:"#aaa",fontFamily:fm,marginLeft:10}}>{prod.who}</span>}
-                  {isAdmin&&(!prod.budget_status||prod.budget_status==="none")&&<button onClick={function(e){e.stopPropagation();var amt=prompt("Enter budget amount for "+prod.name+":");if(amt){var notes=prompt("Budget notes:");fetch(SB_URL+"/rest/v1/dev_ops_products?id=eq."+prod.id,{method:"PATCH",headers:Object.assign({},SB_HEADERS,{"Content-Type":"application/json","Prefer":"return=minimal"}),body:JSON.stringify({budget_amount:parseFloat(amt),budget_status:"pending",budget_notes:notes||""})}).then(function(){show("Budget submitted for approval");});}}} style={{fontSize:9,color:"#0073ea",background:"#0073ea10",border:"1px dashed #0073ea30",borderRadius:6,padding:"2px 8px",cursor:"pointer",marginLeft:8}}>Set Budget</button>}
                   </div>
                   <div className="gw-colhead" style={{padding:"6px 14px 6px 19px",borderBottom:`1px solid ${C.border}`,background:"#fafbfc"}}>
                     <span style={colH}>Feature</span><span style={colH}>Status</span><span style={colH}>Target</span><span style={{...colH,textAlign:"right"}}>Progress</span>
@@ -662,7 +673,7 @@ function Board({isAdmin, currentMember}){
 }
 
 function FPill({label,count,active,onClick,color}){return<button onClick={onClick} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:18,background:active?color+"12":"transparent",border:`1.5px solid ${active?color:"#e0e3e9"}`,cursor:"pointer",fontFamily:ff}}><span style={{fontSize:14,fontWeight:800,color:active?color:C.sub,fontFamily:fm}}>{count}</span><span style={{fontSize:10,fontWeight:600,color:active?color:C.sub}}>{label}</span></button>;}
-function Bat({pct,color,wide}){return<div style={{width:wide?72:52,height:wide?9:6,borderRadius:4,background:"#ecedf0",overflow:"hidden",flexShrink:0}}><div style={{width:pct+"%",height:"100%",borderRadius:4,background:pct===100?C.green:color,transition:"width 0.4s"}}/></div>;}
+function Bat({pct,color,wide}){return<div style={{width:wide?120:80,height:wide?12:8,borderRadius:6,background:"#ecedf0",overflow:"hidden",flexShrink:0}}><div style={{width:pct+"%",height:"100%",borderRadius:6,background:pct===100?"#00c875":pct>=75?"#0073ea":pct>=50?"#fdab3d":"#e2445c",transition:"width 0.4s"}}/></div>;}
 function MiniBar({phase}){const steps=["planning","in-dev","testing","rollout","complete"];const bl=phase==="blocked";const idx=bl?-1:steps.indexOf(phase);return<div style={{display:"flex",gap:2}}>{steps.map((s,i)=><div key={s} style={{width:11,height:5,borderRadius:2,background:!bl&&i<=idx?(i===idx?STATUS[phase].bg:STATUS[phase].bg+"50"):"#ecedf0"}}/>)}{bl&&<div style={{width:11,height:5,borderRadius:2,background:C.red}}/>}</div>;}
 const colH={fontSize:9,fontWeight:700,color:"#aaa",textTransform:"uppercase",letterSpacing:"0.05em"};
 const addBtnStyle={padding:"5px 12px",borderRadius:8,border:`1.5px solid ${C.border}`,background:"transparent",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:ff,color:C.sub};
